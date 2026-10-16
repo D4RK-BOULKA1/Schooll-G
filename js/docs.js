@@ -10,6 +10,8 @@
   DOC.mention = m => m == null ? '' : m >= 16 ? 'Tableau d\'honneur et félicitations' : m >= 14 ? 'Tableau d\'honneur' : m >= 12 ? 'Encouragements' : m >= 10 ? 'Passable' : 'Avertissement de travail';
 
   DOC.results = (D, classId, period) => {
+    /* Espace parent : les résultats sont calculés à la publication, sans exposer les notes des autres élèves. */
+    if (D._results) return D._results[period] || { list: [], subs: [], count: 0, classMean: null, max: null, min: null };
     const subs = D.subjects[classId] || [];
     const studs = D.students.filter(s => s.classId === classId && s.status !== 'radié').sort((a, b) => (a.last + a.first).localeCompare(b.last + b.first));
     const w = +D.settings.compWeight || 1;

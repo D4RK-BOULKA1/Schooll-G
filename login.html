@@ -9,6 +9,14 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/site.css">
+<style>
+.gbtn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 16px;border:1px solid var(--line2);background:#fff;border-radius:var(--r);font-weight:600;font-size:14.5px;color:var(--ink)}
+.gbtn:hover{border-color:var(--ink)}.gbtn[disabled]{opacity:.5;pointer-events:none}
+.or{display:flex;align-items:center;gap:12px;color:var(--mute);font-size:12.5px;margin:16px 0}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line2)}
+.linkbtn{background:none;border:0;color:var(--orange-d);font-weight:600;font-size:13.5px;padding:0}
+.auth .ok{background:var(--green-s);color:var(--green);padding:10px 12px;border-radius:var(--r);font-size:14px;margin-bottom:14px;display:none}
+</style>
 </head>
 <body>
 <div class="auth">
@@ -35,18 +43,28 @@
 
       <section data-p="login">
         <h1>Bon retour</h1><p class="sub">Connectez-vous à l'espace de votre école.</p>
-        <div class="err" id="e-login"></div>
+        <div class="err" id="e-login"></div><div class="ok" id="o-login"></div>
+        <button class="gbtn" type="button" data-google>
+          <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+          Continuer avec Google
+        </button>
+        <div class="or">ou avec votre email</div>
         <form class="frm" id="f-login" novalidate>
           <div class="fld"><label>Email</label><input type="email" name="email" autocomplete="username" required></div>
           <div class="fld"><label>Mot de passe</label><input type="password" name="pw" autocomplete="current-password" required></div>
           <div class="fld"><button class="btn btn-navy btn-lg" style="width:100%">Se connecter</button></div>
         </form>
-        <div class="alt"><span>Pas encore de compte ? <a href="#signup" data-go="signup">Essai gratuit de 7 jours</a></span></div>
+        <div class="alt"><span>Pas encore de compte ? <a href="#signup" data-go="signup">Essai gratuit de 7 jours</a></span><button class="linkbtn" type="button" id="forgot">Mot de passe oublié</button></div>
       </section>
 
       <section data-p="signup" hidden>
         <h1>Essai gratuit de 7 jours</h1><p class="sub">Créez le compte de votre école en une minute.</p>
         <div class="err" id="e-signup"></div>
+        <button class="gbtn" type="button" data-google>
+          <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+          S'inscrire avec Google
+        </button>
+        <div class="or">ou avec votre email</div>
         <form class="frm" id="f-signup" novalidate>
           <div class="fld"><label>Nom de l'école *</label><input type="text" name="name" required></div>
           <div class="fld half"><label>Nom du directeur *</label><input type="text" name="director" required></div>
@@ -60,13 +78,26 @@
         <div class="alt"><span>Déjà inscrit ? <a href="#login" data-go="login">Se connecter</a></span></div>
       </section>
 
+      <section data-p="finish" hidden>
+        <h1>Dernière étape</h1><p class="sub">Renseignez votre école pour démarrer l'essai gratuit de 7 jours.</p>
+        <div class="err" id="e-finish"></div>
+        <form class="frm" id="f-finish" novalidate>
+          <div class="fld"><label>Nom de l'école *</label><input type="text" name="name" required></div>
+          <div class="fld half"><label>Nom du directeur *</label><input type="text" name="director" required></div>
+          <div class="fld half"><label>Ville</label><input type="text" name="city"></div>
+          <div class="fld"><label>Téléphone *</label><input type="tel" name="phone" required></div>
+          <div class="fld"><button class="btn btn-primary btn-lg" style="width:100%">Démarrer mon essai gratuit</button></div>
+        </form>
+        <div class="alt"><button class="linkbtn" type="button" id="cancelFinish">Utiliser un autre compte</button></div>
+      </section>
+
       <section data-p="parent" hidden>
         <h1>Espace parent</h1><p class="sub">Entrez les codes remis par l'école de votre enfant.</p>
         <div class="err" id="e-parent"></div>
         <form class="frm" id="f-parent" novalidate>
-          <div class="fld"><label>Code de l'école</label><input type="text" name="code" placeholder="Ex : K7M2QX" style="text-transform:uppercase" required></div>
-          <div class="fld half"><label>Matricule de l'élève</label><input type="text" name="mat" placeholder="Ex : ELV-0012" required></div>
-          <div class="fld half"><label>Code parent</label><input type="text" name="pin" inputmode="numeric" placeholder="6 chiffres" required></div>
+          <div class="fld"><label>Code de l'école</label><input type="text" name="code" placeholder="Ex : K7M2QX" style="text-transform:uppercase" autocomplete="off" required></div>
+          <div class="fld half"><label>Matricule de l'élève</label><input type="text" name="mat" placeholder="Ex : ELV-0012" autocomplete="off" required></div>
+          <div class="fld half"><label>Code parent</label><input type="text" name="pin" placeholder="8 caractères" style="text-transform:uppercase" autocomplete="off" required></div>
           <div class="fld"><button class="btn btn-navy btn-lg" style="width:100%">Accéder au suivi</button></div>
         </form>
         <div class="alt"><span>Codes manquants ? Demandez-les à la direction de l'école.</span></div>
@@ -74,8 +105,12 @@
     </div>
   </main>
 </div>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="js/config.js"></script>
 <script src="js/common.js"></script>
+<script src="js/store.js"></script>
 <script src="js/login.js"></script>
 </body>
 </html>

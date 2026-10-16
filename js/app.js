@@ -3,14 +3,13 @@
   'use strict';
   const U = window.UI, SG = window.SG;
   const { esc, money, fdate, ic, uid, today, badge } = U;
-  const sess = SG.session();
-  if (!sess || sess.role !== 'director') { location.replace('login.html'); return; }
-  const school0 = SG.school(sess.schoolId);
-  if (!school0) { SG.logout(); location.replace('login.html'); return; }
-  const D = SG.data(school0.id);
+  /* D est rempli au démarrage (A.boot) avec les données Firestore de l'école ; sa référence ne change jamais. */
+  let school0 = null; const sess = { byAdmin: false };
+  const D = {};
   const A = window.APP = { D, U, views: {}, acts: {}, ST: {}, sess };
-  A.school = () => SG.school(school0.id);
+  A.school = () => school0;
   A.save = () => SG.saveData(school0.id, D);
+  A.pin = () => SG.pin();
   const sum = (arr, f) => arr.reduce((a, x) => a + (+f(x) || 0), 0);
   A.sum = sum;
 
@@ -81,7 +80,7 @@
     const g = SG.global();
     const msg = { banned: ['Compte banni', "L'accès de cette école a été suspendu par l'administrateur de School-G."], blocked: ['Compte bloqué', "L'accès de cette école est momentanément bloqué. Contactez l'équipe School-G pour le réactiver."], expired: [sc.paidUntil ? 'Abonnement expiré' : 'Essai gratuit terminé', 'Vos 7 jours d\'essai sont écoulés. Vos données sont conservées : abonnez-vous pour retrouver immédiatement votre école.'] }[st];
     document.getElementById('root').innerHTML = `<div class="lock"><div class="box"><div class="ic">${ic('lock', 28)}</div><h1>${msg[0]}</h1><p>${msg[1]}</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><a class="btn btn-primary" target="_blank" rel="noopener" href="${SG.waLink(g.contactWa, 'Bonjour, je souhaite activer le compte de l\'école ' + sc.name + ' (' + sc.email + ').')}">Contacter par WhatsApp</a><a class="btn btn-ghost" href="mailto:${esc(g.contactMail)}">Envoyer un email</a><button class="btn btn-ghost" id="lkOut">Se déconnecter</button></div><p class="small muted" style="margin-top:18px">${esc(sc.name)} · ${esc(sc.email)}</p></div></div>`;
-    document.getElementById('lkOut').onclick = () => { SG.logout(); location.href = 'login.html'; };
+    document.getElementById('lkOut').onclick = async () => { await SG.logout(); location.href = 'login.html'; };
   }
 
   function shell() {
@@ -91,7 +90,7 @@
     const nav = NAV.map(([g, items]) => `<h6>${g}</h6>` + items.map(([k, l, i]) => `<a class="it" href="#/${k}" data-k="${k}">${ic(i, 18)}<span>${l}</span></a>`).join('')).join('');
     const stb = { trial: badge('Essai · ' + SG.daysLeft(sc) + ' j restants', 'or'), active: badge('Abonné · ' + SG.daysLeft(sc) + ' j', 'ok') }[st] || '';
     document.getElementById('root').innerHTML = `<div class="shell"><aside class="side" id="side"><div class="side-brand"><div class="lg">${S.logo ? `<img src="${S.logo}" alt="">` : 'G'}</div><div style="min-width:0"><b>${esc(S.name || 'Mon école')}</b><small>${esc(S.year)}</small></div></div><nav>${nav}</nav><div class="side-foot">${stb}<div>${esc(sc.director)}</div><a href="#" id="logout">${ic('out', 16)}Se déconnecter</a></div></aside><div class="scrim" id="scrim"></div>
-      <div class="main"><header class="top"><button class="mb" id="mb" aria-label="Menu">${ic('menu', 24)}</button><div class="tt" id="ttl"></div><div class="sp"></div><div class="dt">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div><div class="av">${esc((sc.director || 'D')[0].toUpperCase())}</div></header><div id="banners"></div><main id="view"></main></div></div>`;
+      <div class="main"><header class="top"><button class="mb" id="mb" aria-label="Menu">${ic('menu', 24)}</button><div class="tt" id="ttl"></div><div class="sp"></div><div class="sync" id="sync"></div><div class="dt">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div><div class="av">${esc((sc.director || 'D')[0].toUpperCase())}</div></header><div id="banners"></div><main id="view"></main></div></div>`;
     const bn = [];
     if (sess.byAdmin) bn.push(`<div class="banner adm">${ic('shield', 18)}Mode administrateur : vous consultez cette école. <a href="#" id="exitAdm" style="font-weight:700;text-decoration:underline">Quitter</a></div>`);
     const g = SG.global(); if (g.announcement) bn.push(`<div class="banner info">${ic('bell', 18)}<span>${esc(g.announcement)}</span></div>`);
@@ -101,8 +100,10 @@
     const side = document.getElementById('side'), scrim = document.getElementById('scrim');
     const tog = on => { side.classList.toggle('open', on); scrim.classList.toggle('on', on); };
     document.getElementById('mb').onclick = () => tog(true); scrim.onclick = () => tog(false); side.addEventListener('click', e => { if (e.target.closest('a.it')) tog(false); });
-    document.getElementById('logout').onclick = e => { e.preventDefault(); SG.logout(); location.href = 'login.html'; };
-    const ex = document.getElementById('exitAdm'); if (ex) ex.onclick = e => { e.preventDefault(); SG.logout(); window.close(); location.href = 'admin.html'; };
+    document.getElementById('logout').onclick = async e => { e.preventDefault(); if (sess.byAdmin) { await SG.flushAll(); window.close(); location.href = 'admin.html'; return; } await SG.logout(); location.href = 'login.html'; };
+    const ex = document.getElementById('exitAdm'); if (ex) ex.onclick = async e => { e.preventDefault(); await SG.flushAll(); window.close(); location.href = 'admin.html'; };
+    const sy = document.getElementById('sync'); const L = { pending: 'Modifié', saving: 'Enregistrement…', saved: 'Enregistré', error: 'Erreur d\'enregistrement' };
+    SG.onSync((v, e) => { if (!sy) return; sy.textContent = L[v] || ''; sy.className = 'sync ' + v; sy.title = v === 'error' ? SG.errMsg(e) : ''; if (v === 'saved') setTimeout(() => { if (sy.textContent === L.saved) sy.textContent = ''; }, 2500); });
   }
 
   function route() {
@@ -161,9 +162,27 @@
   };
   A.acts.seed = () => UI.confirm('Charger des élèves, professeurs, paiements et notes fictifs pour explorer School-G ?', () => { A.seedDemo(); location.hash = '#/dashboard'; A.rerender(); UI.toast('Données d\'exemple chargées.', 'ok'); }, { yes: 'Charger' });
 
-  A.boot = () => {
-    const sc = A.school(); const st = SG.status(sc);
-    if (st !== 'trial' && st !== 'active' && !sess.byAdmin) return lockScreen(sc, st);
-    shell(); window.addEventListener('hashchange', route); route();
+  A.boot = async () => {
+    const root = document.getElementById('root');
+    root.innerHTML = '<div class="lock"><div class="box"><p class="muted">Chargement de votre école…</p></div></div>';
+    try {
+      const user = await SG.ready();
+      if (!user) return location.replace('login.html');
+      const vid = new URLSearchParams(location.search).get('view');
+      let id = user.uid;
+      if (vid && SG.isAdmin()) { id = vid; sess.byAdmin = true; }
+      school0 = await SG.school(id);
+      if (!school0) return location.replace('login.html#finish');
+      const st0 = SG.status(school0);
+      if (st0 !== 'trial' && st0 !== 'active' && !sess.byAdmin) return lockScreen(school0, st0);
+      SG.setCurrent(school0);
+      const data = await SG.loadData(school0.id, { school: school0 });
+      Object.keys(D).forEach(k => delete D[k]); Object.assign(D, data);
+      SG.watchData(school0.id, D, () => { if (!document.querySelector('.ov') && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) route(); else UI.toast('Mise à jour reçue d\'un autre appareil.'); });
+      shell(); window.addEventListener('hashchange', route); route();
+    } catch (e) {
+      console.error(e);
+      root.innerHTML = `<div class="lock"><div class="box"><h1>Connexion impossible</h1><p>${esc(SG.errMsg(e))}</p><button class="btn btn-navy" onclick="location.reload()">Réessayer</button></div></div>`;
+    }
   };
 })();

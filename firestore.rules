@@ -1,0 +1,108 @@
+rules_version = '2';
+
+// School-G : règles de sécurité Firestore.
+// A coller dans Firebase, Firestore Database, onglet "Règles", puis Publier.
+// IMPORTANT : l'email de la fonction isAdmin() doit être le même que adminEmail dans js/config.js.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email == 'boulkassoum11@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+
+    function now() { return request.time.toMillis(); }
+
+    function trialDays() {
+      return exists(/databases/$(database)/documents/global/config)
+        ? get(/databases/$(database)/documents/global/config).data.get('trialDays', 7)
+        : 7;
+    }
+
+    // L'école a-t-elle un accès actif (essai valide ou abonnement payé, ni bloquée ni bannie) ?
+    function hasAccess(uid) {
+      let s = get(/databases/$(database)/documents/schools/$(uid)).data;
+      return s.banned == false && s.blocked == false
+        && ((s.paidUntilMs != null && s.paidUntilMs > now())
+            || (s.trialCancelled == false && s.trialEndMs > now()));
+    }
+
+    // Configuration globale : tarifs, durée d'essai, contacts, annonce
+    match /global/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Fiche école et abonnement
+    match /schools/{uid} {
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
+
+      // Création à l'inscription : essai gratuit uniquement, pas d'abonnement ni de statut truqué
+      allow create: if isOwner(uid)
+        && request.resource.data.ownerUid == uid
+        && request.resource.data.plan == 'Essai gratuit'
+        && request.resource.data.paidUntilMs == null
+        && request.resource.data.banned == false
+        && request.resource.data.blocked == false
+        && request.resource.data.trialCancelled == false
+        && request.resource.data.trialEndMs <= now() + (trialDays() + 1) * 86400000;
+
+      // Le directeur ne modifie que ses infos et ses statistiques, jamais l'abonnement
+      allow update: if isAdmin()
+        || (isOwner(uid)
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['name', 'director', 'phone', 'city', 'ownerEmail', 'stats', 'updatedAtMs']));
+
+      allow delete: if isAdmin();
+
+      // Données de l'école (élèves, paiements, notes...) : seulement si l'accès est actif
+      match /d/{docId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if isAdmin() || (isOwner(uid) && hasAccess(uid));
+      }
+    }
+
+    // Informations publiques d'une école pour l'espace parent (identifiée par son code)
+    match /pub/{code} {
+      allow get: if true;
+      allow list: if isAdmin();
+
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.access.paidUntilMs == null
+        && request.resource.data.access.banned == false
+        && request.resource.data.access.blocked == false
+        && request.resource.data.access.trialCancelled == false
+        && request.resource.data.access.trialEndMs <= now() + (trialDays() + 1) * 86400000;
+
+      // Le directeur ne peut pas toucher au champ "access" (réservé à l'administrateur)
+      allow update: if isAdmin()
+        || (isOwner(resource.data.ownerUid)
+            && request.resource.data.ownerUid == resource.data.ownerUid
+            && request.resource.data.access == resource.data.access);
+
+      allow delete: if isAdmin();
+    }
+
+    // Dossier d'un élève pour son parent : lecture par identifiant secret uniquement (pas de liste)
+    match /pstu/{id} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isAdmin()
+        || (isOwner(resource.data.ownerUid) && request.resource.data.ownerUid == resource.data.ownerUid);
+      allow delete: if isAdmin() || isOwner(resource.data.ownerUid);
+    }
+
+    // Abonnements payés et journal : administrateur uniquement
+    match /subs/{id} { allow read, write: if isAdmin(); }
+    match /logs/{id} { allow read, write: if isAdmin(); }
+  }
+}

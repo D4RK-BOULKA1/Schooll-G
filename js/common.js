@@ -215,17 +215,7 @@
     return `<div class="bars" style="height:${h}px">${data.map(d => `<div class="bar"><div class="grp">${d.v.map((v, i) => `<i title="${esc(f(v))}" style="height:${Math.round(v / max * 100)}%;background:${cols[i % cols.length]}"></i>`).join('')}</div><em>${esc(d.label)}</em></div>`).join('')}</div>`;
   };
 
-  /* ---------- données globales ---------- */
-  SG.global = () => Object.assign({ trialDays: C.trialDays, plans: C.plans, announcement: '', contactWa: C.contact.whatsapp, contactMail: C.contact.email }, rd('global', {}));
-  SG.setGlobal = o => wr('global', Object.assign(rd('global', {}), o));
-  SG.schools = () => rd('schools', []);
-  SG.saveSchools = a => wr('schools', a);
-  SG.school = id => SG.schools().find(s => s.id === id);
-  SG.updateSchool = (id, patch) => { const a = SG.schools(); const i = a.findIndex(s => s.id === id); if (i < 0) return null; Object.assign(a[i], patch); SG.saveSchools(a); return a[i]; };
-  SG.subs = () => rd('subs', []);
-  SG.saveSubs = a => wr('subs', a);
-  SG.logs = () => rd('log', []);
-  SG.log = msg => { const l = SG.logs(); l.unshift({ t: new Date().toISOString(), m: msg }); wr('log', l.slice(0, 300)); };
+  /* ---------- statut d'un abonnement (calcul partagé) ---------- */
   SG.status = s => {
     const now = Date.now();
     if (s.banned) return 'banned';
@@ -237,7 +227,7 @@
   SG.STATUS = { banned: ['Banni', 'bad'], blocked: ['Bloqué', 'bad'], active: ['Abonné', 'ok'], trial: ['Essai', 'info'], expired: ['Expiré', 'warn'] };
   SG.daysLeft = s => { const st = SG.status(s); const end = st === 'active' ? s.paidUntil : s.trialEnd; return end ? Math.ceil((new Date(end) - Date.now()) / 864e5) : 0; };
 
-  const schoolYear = () => { const n = new Date(); const y = n.getMonth() >= 7 ? n.getFullYear() : n.getFullYear() - 1; return y; };
+  const schoolYear = () => { const n = new Date(); return n.getMonth() >= 7 ? n.getFullYear() : n.getFullYear() - 1; };
   SG.defaultData = s => {
     const y = schoolYear();
     return {
@@ -254,57 +244,8 @@
       attendance: {}, subjects: {}, notes: {}, timetable: {}, notices: [], customTheme: null, counters: { receipt: 0, student: 0 }
     };
   };
-  SG.data = id => { let d = rd('d_' + id, null); if (!d) { d = SG.defaultData(SG.school(id) || {}); wr('d_' + id, d); } return d; };
-  SG.saveData = (id, d) => wr('d_' + id, d);
-  SG.dropData = id => { try { localStorage.removeItem(K + 'd_' + id); } catch (e) { } };
-
-  const CODE = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const genCode = list => { let c; do { c = Array.from({ length: 6 }, () => CODE[Math.floor(Math.random() * CODE.length)]).join(''); } while (list.some(s => s.code === c)); return c; };
-
-  SG.createSchool = async f => {
-    const list = SG.schools();
-    if (list.some(s => s.email.toLowerCase() === f.email.trim().toLowerCase())) throw new Error('Un compte existe déjà avec cet email.');
-    const g = SG.global(); const now = new Date();
-    const s = { id: uid(), code: genCode(list), name: f.name.trim(), director: f.director.trim(), email: f.email.trim(), phone: f.phone.trim(), city: (f.city || '').trim(), pw: await hash(f.password), createdAt: now.toISOString(), trialEnd: addDays(now, g.trialDays).toISOString(), paidUntil: null, plan: 'Essai gratuit', blocked: false, banned: false, trialCancelled: false, notes: '' };
-    list.push(s); SG.saveSchools(list); SG.data(s.id); SG.log('Nouvelle école inscrite : ' + s.name); return s;
-  };
-
-  /* ---------- sessions ---------- */
-  SG.session = () => rd('session', null);
-  SG.logout = () => { try { localStorage.removeItem(K + 'session'); } catch (e) { } };
-  SG.login = async (email, pw) => {
-    const s = SG.schools().find(x => x.email.toLowerCase() === String(email).trim().toLowerCase());
-    if (!s || s.pw !== await hash(pw)) throw new Error('Email ou mot de passe incorrect.');
-    wr('session', { role: 'director', schoolId: s.id }); SG.log('Connexion directeur : ' + s.name); return s;
-  };
-  SG.parentLogin = (code, mat, pin) => {
-    const s = SG.schools().find(x => x.code === String(code).trim().toUpperCase());
-    if (!s) throw new Error('Code école introuvable.');
-    const st = SG.status(s); if (st === 'banned' || st === 'blocked' || st === 'expired') throw new Error("Cet espace est momentanément indisponible. Contactez l'école.");
-    const d = SG.data(s.id); const stu = d.students.find(x => x.matricule.toLowerCase() === String(mat).trim().toLowerCase() && String(x.pin) === String(pin).trim());
-    if (!stu) throw new Error('Matricule ou code parent incorrect.');
-    wr('session', { role: 'parent', schoolId: s.id, studentId: stu.id }); return s;
-  };
-  SG.adminLogin = async (email, pw) => {
-    const f = rd('adm_fail', { n: 0, until: 0 });
-    if (f.until > Date.now()) throw new Error('Trop de tentatives. Réessayez dans ' + Math.ceil((f.until - Date.now()) / 1000) + ' s.');
-    const g = rd('global', {}); const aEmail = g.adminEmail || C.admin.email; const aHash = g.adminPw || await hash(C.admin.password);
-    if (String(email).trim().toLowerCase() !== aEmail.toLowerCase() || await hash(pw) !== aHash) {
-      f.n++; if (f.n >= 5) { f.until = Date.now() + 60000; f.n = 0; } wr('adm_fail', f); throw new Error('Identifiants administrateur incorrects.');
-    }
-    wr('adm_fail', { n: 0, until: 0 }); sessionStorage.setItem(K + 'admin', '1'); SG.log('Connexion administrateur');
-  };
-  SG.adminOk = () => sessionStorage.getItem(K + 'admin') === '1';
-  SG.adminOut = () => sessionStorage.removeItem(K + 'admin');
-  SG.recordSub = (schoolId, o) => {
-    const s = SG.school(schoolId); const subs = SG.subs();
-    const base = s.paidUntil && new Date(s.paidUntil) > Date.now() ? new Date(s.paidUntil) : new Date();
-    const until = addDays(base, Math.round(30.4 * o.months));
-    subs.unshift({ id: uid(), schoolId, schoolName: s.name, amount: +o.amount || 0, months: o.months, plan: o.plan || '', method: o.method || '', ref: o.ref || '', date: today(), status: 'validé', note: o.note || '', prevPaidUntil: s.paidUntil || null });
-    SG.saveSubs(subs); SG.updateSchool(schoolId, { paidUntil: until.toISOString(), plan: o.plan || 'Abonnement', blocked: false, trialCancelled: false });
-    SG.log('Abonnement enregistré : ' + s.name + ' (' + o.months + ' mois)');
-  };
   SG.waLink = (num, text) => 'https://wa.me/' + String(num || '').replace(/\D/g, '') + (text ? '?text=' + encodeURIComponent(text) : '');
+  SG.rd = rd; SG.wr = wr;
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => { });
 })();
