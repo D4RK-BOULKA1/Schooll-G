@@ -21,7 +21,7 @@
       <form class="frm" id="f-ped" style="margin-top:18px">${UI.fields([{ name: 'cantinePrice', label: 'Tarif cantine mensuel (FCFA)', type: 'number', min: 0, cls: 'half' }, { name: 'compWeight', label: 'Poids de la composition', type: 'number', min: 1, step: '0.5', cls: 'half', hint: 'Moyenne = (note de classe + composition × poids) / (1 + poids).' }, { name: 'periods', label: 'Périodes d\'évaluation (une par ligne)', type: 'textarea', rows: 3, def: S.periods.join('\n') }], S)}</form></div></div>
     <div class="g2"><div class="card"><div class="ch"><h3>Abonnement</h3>${badge(SG.STATUS[st][0] + ' · ' + SG.daysLeft(sc) + ' j', SG.STATUS[st][1])}</div><div class="cb"><dl class="kv"><dt>Formule</dt><dd>${esc(sc.plan)}</dd><dt>Code école</dt><dd><span class="code">${esc(sc.code)}</span></dd><dt>Fin ${st === 'active' ? 'abonnement' : 'd\'essai'}</dt><dd>${fdate(st === 'active' ? sc.paidUntil : sc.trialEnd)}</dd><dt>Inscrit le</dt><dd>${fdate(sc.createdAt)}</dd></dl><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px"><a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="${SG.waLink(g.contactWa, 'Bonjour, je souhaite m\'abonner / renouveler School-G pour ' + sc.name + '.')}">S'abonner par WhatsApp</a><a class="btn btn-ghost btn-sm" href="mailto:${esc(g.contactMail)}">Email</a></div><p class="small muted" style="margin-top:12px">Le code école est à communiquer aux parents avec le matricule et le code parent de leur enfant.</p></div></div>
     <div class="card"><div class="ch"><h3>Connexion</h3></div><div class="cb"><dl class="kv" style="margin-bottom:14px"><dt>Compte</dt><dd>${esc((SG.user && SG.user.email) || '')}</dd><dt>Méthode</dt><dd>${SG.hasPassword() ? 'Email et mot de passe' : 'Google'}</dd></dl>${SG.hasPassword() ? `<form class="frm" id="f-pw">${UI.fields([{ name: 'old', label: 'Mot de passe actuel', type: 'password', auto: 'current-password' }, { name: 'n1', label: 'Nouveau mot de passe', type: 'password', auto: 'new-password', cls: 'half' }, { name: 'n2', label: 'Confirmer', type: 'password', auto: 'new-password', cls: 'half' }], {})}</form><div style="margin-top:14px">${A.btn('set-pw', 'Changer le mot de passe', { cls: 'btn-navy', sm: true })}</div>` : '<p class="small muted">Votre mot de passe est géré par Google.</p>'}</div></div></div>
-    <div class="card"><div class="ch"><h3>Données</h3></div><div class="cb"><p class="muted small" style="margin-bottom:14px">Sauvegardez régulièrement vos données. L'import remplace toutes les données actuelles de l'école.</p><div style="display:flex;gap:8px;flex-wrap:wrap">${A.btn('data-export', 'Exporter une sauvegarde', { icon: 'dl' })}<label class="btn btn-ghost">${ic('up', 16)}Importer une sauvegarde<input type="file" accept=".json,application/json" hidden id="imp"></label>${A.btn('seed', 'Charger des données d\'exemple', { icon: 'refresh' })}${A.btn('data-reset', 'Réinitialiser l\'école', { cls: 'btn-danger', icon: 'trash' })}</div></div></div>
+    <div class="card"><div class="ch"><h3>Données</h3></div><div class="cb"><p class="muted small" style="margin-bottom:14px">Sauvegardez régulièrement vos données. L'import remplace toutes les données actuelles de l'école.</p><div style="display:flex;gap:8px;flex-wrap:wrap">${A.btn('data-export', 'Exporter une sauvegarde', { icon: 'dl' })}<label class="btn btn-ghost">${ic('up', 16)}Importer une sauvegarde<input type="file" accept=".json,application/json" hidden id="imp"></label>${A.btn('seed', 'Charger des données d\'exemple', { icon: 'refresh' })}${A.hasDemo() ? A.btn('demo-remove', 'Retirer les données d\'exemple', { icon: 'trash' }) : ''}${A.btn('data-reset', 'Réinitialiser l\'école', { cls: 'btn-danger', icon: 'trash' })}</div></div></div>
     </div>`);
     document.getElementById('imp').onchange = e => {
       const f = e.target.files[0]; if (!f) return; const r = new FileReader();
@@ -45,11 +45,12 @@
     if (v.n1.length < 6) return UI.toast('Au moins 6 caractères.', 'err'); if (v.n1 !== v.n2) return UI.toast('Les mots de passe ne correspondent pas.', 'err');
     try { await SG.changePassword(v.old, v.n1); UI.toast('Mot de passe modifié.', 'ok'); document.getElementById('f-pw').reset(); } catch (e) { UI.toast(SG.errMsg(e), 'err'); }
   };
+  ACT['demo-remove'] = () => UI.confirm('Retirer les élèves, professeurs, paiements, notes et avis d\'exemple ? Vos propres données sont conservées.', () => { A.removeDemo(); A.rerender(); UI.toast('Données d\'exemple retirées.', 'ok'); }, { danger: true, yes: 'Retirer' });
   ACT['data-export'] = () => U.download('school-g-' + (D.settings.name || 'ecole').replace(/\W+/g, '-').toLowerCase() + '-' + today() + '.json', JSON.stringify(D));
   ACT['data-reset'] = () => UI.confirm('Effacer <b>toutes</b> les données de l\'école (élèves, paiements, notes...) ? Cette action est définitive. Pensez à exporter une sauvegarde.', () => { const fresh = SG.defaultData(A.school()); const keep = D.settings; Object.keys(D).forEach(k => delete D[k]); Object.assign(D, fresh); Object.assign(D.settings, { name: keep.name, logo: keep.logo, accent: keep.accent, address: keep.address, phone: keep.phone, email: keep.email, city: keep.city }); A.save(); UI.toast('École réinitialisée.'); A.go('#/dashboard'); A.rerender(); }, { danger: true, yes: 'Tout effacer' });
 
   /* ---------- données d'exemple ---------- */
-  A.seedDemo = () => {
+  const seedRaw = () => {
     const pick = a => a[Math.floor(Math.random() * a.length)], rn = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
     const empty = !D.students.length;
     if (!D.classes.length) {
@@ -83,6 +84,40 @@
     if (!D.expenses.length) [['Loyer du mois', 'Loyer', 150000], ['Facture d\'électricité', 'Électricité et eau', 45000], ['Achat de fournitures de bureau', 'Fournitures', 60000], ['Entretien des salles', 'Entretien', 25000]].forEach(([label, cat, amount], i) => D.expenses.push({ id: uid(), label, cat, amount, date: addDays(today(), -i * 3 - 1).toISOString().slice(0, 10), method: 'Espèces', note: '' }));
     if (!D.salaries.length) D.teachers.slice(0, 3).forEach(t => D.salaries.push({ id: uid(), teacherId: t.id, month: today().slice(0, 7), amount: t.salary, method: 'Espèces', date: today(), status: 'payé' }));
     if (!D.notices.length) { D.notices.push({ id: uid(), title: 'Réunion des parents d\'élèves', body: 'Une réunion générale aura lieu samedi à 9 h dans la cour de l\'école. Votre présence est vivement souhaitée.', target: 'all', priority: 'important', date: today() }); D.notices.push({ id: uid(), title: 'Rappel : première tranche de scolarité', body: 'Nous rappelons aux parents que la première tranche de scolarité était à régler avant le 30 septembre.', target: 'all', priority: 'normal', date: addDays(today(), -4).toISOString().slice(0, 10) }); }
+    A.save();
+  };
+
+  /* Marque tout ce que le chargement d'exemple ajoute, pour pouvoir le retirer sans toucher aux vraies données. */
+  const COLS = ['classes', 'students', 'teachers', 'payments', 'salaries', 'expenses', 'stock', 'notices'];
+  A.seedDemo = () => {
+    const before = {}; COLS.forEach(c => { before[c] = new Set((D[c] || []).map(x => x.id)); });
+    const hadTranches = JSON.stringify(D.settings.tranches), hadCounter = D.counters.student;
+    seedRaw();
+    COLS.forEach(c => (D[c] || []).forEach(x => { if (!before[c].has(x.id)) x.demo = true; }));
+    D.demoMeta = D.demoMeta || { tranches: hadTranches, counter: hadCounter };
+    A.save();
+  };
+  A.hasDemo = () => COLS.some(c => (D[c] || []).some(x => x.demo));
+  A.removeDemo = () => {
+    const demoStu = new Set(D.students.filter(s => s.demo).map(s => s.id));
+    const demoCls = new Set(D.classes.filter(c => c.demo).map(c => c.id));
+    const demoTea = new Set(D.teachers.filter(t => t.demo).map(t => t.id));
+    // une classe d'exemple qui accueille de vrais élèves est conservée
+    D.students.forEach(s => { if (!s.demo) demoCls.delete(s.classId); });
+    D.students = D.students.filter(s => !s.demo);
+    D.payments = D.payments.filter(p => !p.demo && !demoStu.has(p.studentId));
+    D.salaries = D.salaries.filter(x => !x.demo && !demoTea.has(x.teacherId));
+    D.expenses = D.expenses.filter(x => !x.demo);
+    D.stock = D.stock.filter(x => !x.demo);
+    D.notices = D.notices.filter(x => !x.demo);
+    D.teachers = D.teachers.filter(t => !t.demo);
+    D.classes.forEach(c => { if (demoTea.has(c.teacherId)) c.teacherId = ''; });
+    D.classes = D.classes.filter(c => !demoCls.has(c.id));
+    demoCls.forEach(id => { delete D.subjects[id]; if (D.timetable) delete D.timetable[id]; });
+    Object.keys(D.notes || {}).forEach(k => { if (demoStu.has(k.split('|')[0])) delete D.notes[k]; });
+    Object.keys(D.attendance || {}).forEach(d => { demoStu.forEach(id => delete D.attendance[d][id]); if (!Object.keys(D.attendance[d]).length) delete D.attendance[d]; });
+    if (D.moves) D.moves = D.moves.filter(m => !m.demo);
+    if (D.demoMeta) { if (!D.students.length) { D.settings.tranches = JSON.parse(D.demoMeta.tranches); D.counters.student = D.demoMeta.counter; } delete D.demoMeta; }
     A.save();
   };
 })();
