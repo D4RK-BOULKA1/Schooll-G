@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Espace parent, School-G</title>
+<meta name="theme-color" content="#14213D">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/base.css">
+<style>
+body{background:var(--paper)}
+.ph-top{background:var(--navy);color:#fff}
+.ph-top .in{max-width:980px;margin:0 auto;padding:18px 20px;display:flex;align-items:center;gap:14px}
+.ph-top .lg{width:42px;height:42px;background:#fff;border-radius:5px;display:grid;place-items:center;overflow:hidden;flex:none;font-family:var(--fh);font-weight:700;color:var(--orange);font-size:22px}
+.ph-top .lg img{width:100%;height:100%;object-fit:contain}
+.ph-top b{font-family:var(--fh);font-size:17px;display:block;line-height:1.2}.ph-top small{color:#b6bfd6}
+.ph-top .sp{flex:1}.ph-top button{background:none;border:1px solid rgba(255,255,255,.35);color:#fff;padding:7px 14px;border-radius:var(--r);font-size:13px;font-weight:600}
+.kid{background:#fff;border-bottom:1px solid var(--line)}
+.kid .in{max-width:980px;margin:0 auto;padding:22px 20px;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.kid .big{width:74px;height:74px;border-radius:8px;background:var(--navy-s);overflow:hidden;display:grid;place-items:center;font-family:var(--fh);font-size:26px;font-weight:700;color:var(--navy);flex:none}
+.kid .big img{width:100%;height:100%;object-fit:cover}
+.kid h1{font-size:25px}
+.tabs2{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.tabs2 .in{max-width:980px;margin:0 auto;padding:0 12px;display:flex;overflow-x:auto}
+.tabs2 button{background:none;border:0;padding:14px 16px;font-weight:600;font-size:14px;color:var(--mute);border-bottom:3px solid transparent;white-space:nowrap}
+.tabs2 button.on{color:var(--ink);border-bottom-color:var(--orange)}
+.cont{max-width:980px;margin:0 auto;padding:22px 20px 60px}
+.card{background:#fff;border:1px solid var(--line);border-radius:8px;margin-bottom:16px}
+.card>.ch{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.card>.ch h3{font-size:17px}.card>.cb{padding:18px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;align-items:center}.row:last-child{border:0}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:#fff;border:1px solid var(--line);border-top:3px solid var(--navy);padding:14px 16px;border-radius:8px}
+.kpi.g{border-top-color:var(--green)}.kpi.r{border-top-color:var(--red)}.kpi.o{border-top-color:var(--orange)}
+.kpi small{font-size:11.5px;color:var(--mute);text-transform:uppercase;letter-spacing:.06em;font-weight:600}.kpi b{display:block;font-family:var(--fh);font-size:21px;margin-top:3px}
+.nt{border-left:4px solid var(--navy)}.nt.important{border-left-color:var(--amber)}.nt.urgent{border-left-color:var(--red)}
+.tt-grid{display:grid;border:1px solid var(--line2);background:#fff;min-width:700px}
+.tt-grid>div{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:8px;min-height:54px;font-size:12.5px}
+.tt-grid .hd{background:var(--navy);color:#fff;font-weight:600;text-align:center;min-height:0}.tt-grid .sl{background:var(--paper);font-weight:600;font-size:12px}
+.tt-grid b{display:block}
+.bl-wrap{background:#E9E5DB;padding:14px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+@media(max-width:560px){.kpis{grid-template-columns:1fr}.kid h1{font-size:21px}}
+@media print{.ph-top,.kid,.tabs2,.noprint{display:none!important}.cont{padding:0}.bl-wrap{background:#fff;padding:0;border:0}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/docs.js"></script>
+<script src="js/parent.js"></script>
+</body>
+</html>

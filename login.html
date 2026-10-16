@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Connexion, School-G</title>
+<meta name="theme-color" content="#14213D">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+<div class="auth">
+  <aside class="side">
+    <a class="logo" href="index.html"><i>G</i>School-G</a>
+    <div>
+      <h2>Gérez votre école sans cahiers ni tableurs.</h2>
+      <p>Scolarité, paiements, pointage, notes, bulletins et cartes scolaires, au même endroit.</p>
+      <ul>
+        <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>7 jours d'essai gratuit</li>
+        <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>Aucune carte bancaire demandée</li>
+        <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>Espace séparé pour les parents</li>
+      </ul>
+    </div>
+    <a href="admin.html" class="small" style="color:#8e99b8">Accès administrateur</a>
+  </aside>
+  <main class="main">
+    <div class="box">
+      <div class="tabs" id="tabs">
+        <button data-t="login" class="on">Direction</button>
+        <button data-t="signup">Essai gratuit</button>
+        <button data-t="parent">Parent</button>
+      </div>
+
+      <section data-p="login">
+        <h1>Bon retour</h1><p class="sub">Connectez-vous à l'espace de votre école.</p>
+        <div class="err" id="e-login"></div>
+        <form class="frm" id="f-login" novalidate>
+          <div class="fld"><label>Email</label><input type="email" name="email" autocomplete="username" required></div>
+          <div class="fld"><label>Mot de passe</label><input type="password" name="pw" autocomplete="current-password" required></div>
+          <div class="fld"><button class="btn btn-navy btn-lg" style="width:100%">Se connecter</button></div>
+        </form>
+        <div class="alt"><span>Pas encore de compte ? <a href="#signup" data-go="signup">Essai gratuit de 7 jours</a></span></div>
+      </section>
+
+      <section data-p="signup" hidden>
+        <h1>Essai gratuit de 7 jours</h1><p class="sub">Créez le compte de votre école en une minute.</p>
+        <div class="err" id="e-signup"></div>
+        <form class="frm" id="f-signup" novalidate>
+          <div class="fld"><label>Nom de l'école *</label><input type="text" name="name" required></div>
+          <div class="fld half"><label>Nom du directeur *</label><input type="text" name="director" required></div>
+          <div class="fld half"><label>Ville</label><input type="text" name="city"></div>
+          <div class="fld half"><label>Email *</label><input type="email" name="email" autocomplete="username" required></div>
+          <div class="fld half"><label>Téléphone *</label><input type="tel" name="phone" required></div>
+          <div class="fld half"><label>Mot de passe *</label><input type="password" name="password" autocomplete="new-password" required></div>
+          <div class="fld half"><label>Confirmer *</label><input type="password" name="confirm" autocomplete="new-password" required></div>
+          <div class="fld"><button class="btn btn-primary btn-lg" style="width:100%">Démarrer mon essai gratuit</button></div>
+        </form>
+        <div class="alt"><span>Déjà inscrit ? <a href="#login" data-go="login">Se connecter</a></span></div>
+      </section>
+
+      <section data-p="parent" hidden>
+        <h1>Espace parent</h1><p class="sub">Entrez les codes remis par l'école de votre enfant.</p>
+        <div class="err" id="e-parent"></div>
+        <form class="frm" id="f-parent" novalidate>
+          <div class="fld"><label>Code de l'école</label><input type="text" name="code" placeholder="Ex : K7M2QX" style="text-transform:uppercase" required></div>
+          <div class="fld half"><label>Matricule de l'élève</label><input type="text" name="mat" placeholder="Ex : ELV-0012" required></div>
+          <div class="fld half"><label>Code parent</label><input type="text" name="pin" inputmode="numeric" placeholder="6 chiffres" required></div>
+          <div class="fld"><button class="btn btn-navy btn-lg" style="width:100%">Accéder au suivi</button></div>
+        </form>
+        <div class="alt"><span>Codes manquants ? Demandez-les à la direction de l'école.</span></div>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="js/config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/login.js"></script>
+</body>
+</html>

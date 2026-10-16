@@ -1,0 +1,10 @@
+{
+  "name": "School-G",
+  "short_name": "School-G",
+  "description": "Logiciel de gestion scolaire",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#14213D",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
