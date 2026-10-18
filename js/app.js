@@ -76,10 +76,21 @@
   ];
   const TITLES = {}; NAV.forEach(g => g[1].forEach(i => TITLES[i[0]] = i[1])); TITLES.student = 'Fiche élève';
 
+  /* Fenêtre « M'abonner » : chaque formule ouvre WhatsApp avec un message prérempli. */
+  A.subscribe = (sc, renew) => {
+    sc = sc || school0; const g = SG.global(); const fm = n => UI.money ? UI.money(n) : n + ' FCFA';
+    const body = `<p class="muted" style="margin-bottom:14px">Choisissez une formule : WhatsApp s'ouvre avec votre demande déjà écrite.</p><div style="display:grid;gap:10px">${(g.plans || []).map((p, i, a) => {
+      const msg = 'Bonjour, je souhaite ' + (renew ? 'renouveler mon abonnement' : 'm\'abonner') + ' à School-G, formule ' + p.name + ' (' + p.price + ' FCFA, ' + p.months + ' mois), pour l\'école ' + sc.name + ' (' + sc.email + ').';
+      return `<a class="btn ${i === a.length - 1 ? 'btn-primary' : 'btn-ghost'}" target="_blank" rel="noopener" href="${SG.waLink(g.contactWa, msg)}" style="justify-content:space-between;padding:14px 16px;height:auto;text-align:left"><span><b>${esc(p.name)}</b><br><small style="opacity:.8;font-weight:400">${esc(p.desc || '')}</small></span><b>${esc(fm(p.price))}</b></a>`;
+    }).join('')}</div>`;
+    UI.modal({ title: 'Choisir une formule', body, size: 'sm', actions: [{ label: 'Fermer' }] });
+  };
+  document.addEventListener('click', e => { const b = e.target.closest('[data-sub]'); if (b) { e.preventDefault(); A.subscribe(school0, b.dataset.sub === 'renew'); } });
+
   function lockScreen(sc, st) {
     const g = SG.global();
     const msg = { banned: ['Compte banni', "L'accès de cette école a été suspendu par l'administrateur de School-G."], blocked: ['Compte bloqué', "L'accès de cette école est momentanément bloqué. Contactez l'équipe School-G pour le réactiver."], expired: [sc.paidUntil ? 'Abonnement expiré' : 'Essai gratuit terminé', 'Vos 7 jours d\'essai sont écoulés. Vos données sont conservées : abonnez-vous pour retrouver immédiatement votre école.'] }[st];
-    document.getElementById('root').innerHTML = `<div class="lock"><div class="box"><div class="ic">${ic('lock', 28)}</div><h1>${msg[0]}</h1><p>${msg[1]}</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><a class="btn btn-primary" target="_blank" rel="noopener" href="${SG.waLink(g.contactWa, 'Bonjour, je souhaite activer le compte de l\'école ' + sc.name + ' (' + sc.email + ').')}">Contacter par WhatsApp</a><a class="btn btn-ghost" href="mailto:${esc(g.contactMail)}">Envoyer un email</a><button class="btn btn-ghost" id="lkOut">Se déconnecter</button></div><p class="small muted" style="margin-top:18px">${esc(sc.name)} · ${esc(sc.email)}</p></div></div>`;
+    document.getElementById('root').innerHTML = `<div class="lock"><div class="box"><div class="ic">${ic('lock', 28)}</div><h1>${msg[0]}</h1><p>${msg[1]}</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">${st === 'expired' ? '<button class="btn btn-primary" data-sub="new">M\'abonner</button>' : ''}<a class="btn btn-ghost" target="_blank" rel="noopener" href="${SG.waLink(g.contactWa, 'Bonjour, je souhaite activer le compte de l\'école ' + sc.name + ' (' + sc.email + ').')}">Contacter par WhatsApp</a><a class="btn btn-ghost" href="mailto:${esc(g.contactMail)}">Envoyer un email</a><button class="btn btn-ghost" id="lkOut">Se déconnecter</button></div><p class="small muted" style="margin-top:18px">${esc(sc.name)} · ${esc(sc.email)}</p></div></div>`;
     document.getElementById('lkOut').onclick = async () => { await SG.logout(); location.href = 'login.html'; };
   }
 
@@ -94,8 +105,8 @@
     const bn = [];
     if (sess.byAdmin) bn.push(`<div class="banner adm">${ic('shield', 18)}Mode administrateur : vous consultez cette école. <a href="#" id="exitAdm" style="font-weight:700;text-decoration:underline">Quitter</a></div>`);
     const g = SG.global(); if (g.announcement) bn.push(`<div class="banner info">${ic('bell', 18)}<span>${esc(g.announcement)}</span></div>`);
-    if (st === 'trial') bn.push(`<div class="banner trial"><span>Essai gratuit : <b>${SG.daysLeft(sc)} jour(s)</b> restant(s).</span><a target="_blank" rel="noopener" href="${SG.waLink(g.contactWa, 'Bonjour, je souhaite m\'abonner à School-G pour ' + sc.name + '.')}">Passer à l'abonnement</a></div>`);
-    else if (st === 'active' && SG.daysLeft(sc) <= 7) bn.push(`<div class="banner trial"><span>Votre abonnement se termine dans <b>${SG.daysLeft(sc)} jour(s)</b>.</span><a target="_blank" rel="noopener" href="${SG.waLink(g.contactWa, 'Bonjour, je souhaite renouveler mon abonnement School-G pour ' + sc.name + '.')}">Renouveler</a></div>`);
+    if (st === 'trial') bn.push(`<div class="banner trial"><span>Essai gratuit : <b>${SG.daysLeft(sc)} jour(s)</b> restant(s).</span><button class="btn btn-primary btn-sm" data-sub="new">M'abonner</button></div>`);
+    else if (st === 'active' && SG.daysLeft(sc) <= 7) bn.push(`<div class="banner trial"><span>Votre abonnement se termine dans <b>${SG.daysLeft(sc)} jour(s)</b>.</span><button class="btn btn-primary btn-sm" data-sub="renew">Renouveler</button></div>`);
     document.getElementById('banners').innerHTML = bn.join('');
     const side = document.getElementById('side'), scrim = document.getElementById('scrim');
     const tog = on => { side.classList.toggle('open', on); scrim.classList.toggle('on', on); };
