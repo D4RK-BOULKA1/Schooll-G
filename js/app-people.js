@@ -35,8 +35,8 @@
         if (create) {
           const st = Object.assign({}, v, { id: uid(), matricule: 'ELV-' + String(++D.counters.student).padStart(4, '0'), pin: rnd6(), status: 'inscrit', createdAt: today() });
           delete st.inscPay; delete st.inscFee; D.students.push(st);
-          if (v.inscPay && +v.inscFee > 0) A.addPayment({ studentId: st.id, type: 'Inscription', amount: +v.inscFee });
-          A.save(); UI.toast('Élève inscrit : ' + st.matricule, 'ok'); A.go('#/student/' + st.id);
+          const insc = (v.inscPay && +v.inscFee > 0) ? A.addPayment({ studentId: st.id, type: 'Inscription', amount: +v.inscFee }) : null;
+          A.save(); UI.toast('Élève inscrit : ' + st.matricule, 'ok'); A.go('#/student/' + st.id); if (insc) setTimeout(() => A.receipt(insc), 250);
         } else { Object.assign(s, v); A.save(); UI.toast('Fiche mise à jour.', 'ok'); A.rerender(); }
       }
     });

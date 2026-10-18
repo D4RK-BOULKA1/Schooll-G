@@ -5,7 +5,7 @@
   const { esc, money, fdate, ic, today, badge } = UI;
   const root = document.getElementById('root');
   const ST = { q: '', f: '', tab: 'dash' };
-  const DATA = { schools: [], subs: [], logs: [] };
+  const DATA = { schools: [], subs: [], logs: [], msgs: [] };
   const $ = id => document.getElementById(id);
   const G = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
 
@@ -45,6 +45,7 @@
     if (!what || what === 'schools') DATA.schools = await SG.schools();
     if (!what || what === 'subs') DATA.subs = await SG.subs().catch(() => []);
     if (what === 'logs') DATA.logs = await SG.logs().catch(() => []);
+    if (what === 'msgs') DATA.msgs = await SG.allMessages().catch(() => []);
   }
   const stats = () => {
     const sch = DATA.schools, subs = DATA.subs.filter(s => s.status === 'validé');
@@ -96,9 +97,18 @@
   };
   A.refund = id => { const x = DATA.subs.find(q => q.id === id); UI.confirm(`Annuler le paiement de ${money(x.amount)} de <b>${esc(x.schoolName)}</b> ? L'abonnement sera ramené à sa date précédente.`, () => run(async () => { await SG.refundSub(x); await load('subs'); }, 'Paiement annulé.'), { danger: true, yes: 'Annuler le paiement' }); };
 
+  A.sendMsg = async () => {
+    const f = $('f-msg'), v = UI.read(f); if (!v.title.trim() || !v.body.trim()) return UI.toast('Renseignez le titre et le message.', 'err');
+    const sc = v.target === 'all' ? null : byId(v.target);
+    UI.confirm(v.target === 'all' ? `Envoyer ce message à <b>toutes les écoles</b> (${DATA.schools.length}) ?` : `Envoyer ce message à <b>${esc(sc ? sc.name : '')}</b> ?`, async () => {
+      try { await SG.sendMessage({ target: v.target, targetName: sc ? sc.name : '', title: v.title, body: v.body }); await load('msgs'); render(); UI.toast('Message envoyé.', 'ok'); } catch (x) { UI.toast(SG.errMsg(x), 'err'); }
+    }, { yes: 'Envoyer' });
+  };
+  A.delMsg = id => UI.confirm('Supprimer ce message ? Il disparaîtra aussi chez les écoles.', async () => { try { await SG.deleteMessage(id); await load('msgs'); render(); UI.toast('Message supprimé.', 'ok'); } catch (x) { UI.toast(SG.errMsg(x), 'err'); } }, { danger: true, yes: 'Supprimer' });
+
   document.addEventListener('click', async e => {
     const el = e.target.closest('[data-a]'); if (!el) return; const a = el.dataset.a;
-    if (a === 'tab') { e.preventDefault(); ST.tab = el.dataset.id; if (ST.tab === 'logs') await load('logs'); render(); return; }
+    if (a === 'tab') { e.preventDefault(); ST.tab = el.dataset.id; if (ST.tab === 'logs') await load('logs'); if (ST.tab === 'settings') await load('msgs'); render(); return; }
     if (a === 'logout') { e.preventDefault(); await SG.logout(); loginView(); return; }
     if (a === 'csv') return exportCsv();
     if (a === 'plans') return plansModal();
@@ -146,7 +156,9 @@
     else if (ST.tab === 'logs') body = `<div class="card"><div class="cb" style="padding-top:6px;padding-bottom:6px">${DATA.logs.map(x => `<div class="row"><span>${esc(x.m)}</span><small class="muted nowrap">${new Date(x.tMs).toLocaleString('fr-FR')}</small></div>`).join('') || '<div class="empty"><h4>Journal vide</h4></div>'}</div></div>`;
     else body = `<div class="g2"><div class="card"><div class="ch"><h3>Tarifs et essai</h3><button class="btn btn-primary btn-sm" data-a="plans">Modifier</button></div><div class="cb"><div class="row"><span>Durée de l'essai</span><b>${g.trialDays} jours</b></div>${g.plans.map(p => `<div class="row"><span>${esc(p.name)}</span><b>${money(p.price)} / ${p.months} mois</b></div>`).join('')}<div class="row"><span>WhatsApp</span><b>${esc(g.contactWa)}</b></div></div></div>
       <div class="card"><div class="ch"><h3>Annonce globale</h3><button class="btn btn-primary btn-sm" data-a="announce">Modifier</button></div><div class="cb"><p>${esc(g.announcement) || '<span class="muted">Aucune annonce.</span>'}</p></div></div>
-      <div class="card"><div class="ch"><h3>Compte administrateur</h3></div><div class="cb"><dl class="kv"><dt>Connecté</dt><dd>${esc((SG.user && SG.user.email) || '')}</dd></dl><p class="small muted" style="margin-top:10px">Seul l'email défini dans <span class="code">js/config.js</span> et <span class="code">firestore.rules</span> a accès à ce panneau.</p></div></div></div>`;
+      <div class="card"><div class="ch"><h3>Compte administrateur</h3></div><div class="cb"><dl class="kv"><dt>Connecté</dt><dd>${esc((SG.user && SG.user.email) || '')}</dd></dl><p class="small muted" style="margin-top:10px">Seul l'email défini dans <span class="code">js/config.js</span> et <span class="code">firestore.rules</span> a accès à ce panneau.</p></div></div>
+      <div class="card" style="grid-column:1/-1"><div class="ch"><h3>Message aux écoles</h3></div><div class="cb"><form class="frm" id="f-msg" novalidate><div class="fld"><label>Destinataire</label><select name="target"><option value="all">Toutes les écoles (${DATA.schools.length})</option>${DATA.schools.slice().sort((a, b) => a.name.localeCompare(b.name)).map(s => `<option value="${esc(s.id)}">${esc(s.name)} · ${esc(s.city || s.email)}</option>`).join('')}</select></div><div class="fld"><label>Titre</label><input type="text" name="title" maxlength="120" placeholder="Ex : Nouvelle fonctionnalité disponible"></div><div class="fld"><label>Message</label><textarea name="body" rows="4" maxlength="2000" placeholder="Votre message : les directeurs le verront dans leur espace, avec une pastille sur la cloche."></textarea></div><div class="fld"><button class="btn btn-primary" data-a="sendMsg" type="button">Envoyer le message</button></div></form>
+      <h4 style="margin:20px 0 6px;font-size:16px">Messages envoyés</h4>${DATA.msgs.length ? DATA.msgs.map(m => `<div class="row" style="align-items:flex-start"><span><b>${esc(m.title)}</b> <small class="muted">· ${m.target === 'all' ? 'Toutes les écoles' : esc(m.targetName || m.target)} · ${new Date(m.createdMs).toLocaleString('fr-FR')}</small><br><small>${esc(m.body)}</small></span><button class="btn btn-ghost btn-sm" data-a="delMsg" data-id="${esc(m.id)}">Supprimer</button></div>`).join('') : '<p class="muted small">Aucun message envoyé.</p>'}</div></div></div>`;
     root.innerHTML = `<div class="shell"><aside class="side" id="side"><div class="side-brand"><div class="lg">G</div><div><b>School-G</b><small>Administration</small></div></div><nav>${nav.map(([k, l, i]) => `<a class="it ${ST.tab === k ? 'on' : ''}" href="#" data-a="tab" data-id="${k}">${ic(i, 18)}<span>${l}</span></a>`).join('')}</nav><div class="side-foot"><a href="#" data-a="logout">${ic('out', 16)}Se déconnecter</a><a href="index.html">${ic('arrow', 16)}Retour au site</a></div></aside><div class="scrim" id="scrim"></div>
       <div class="main"><header class="top"><button class="mb" id="mb" aria-label="Menu">${ic('menu', 24)}</button><div class="tt">${nav.find(n => n[0] === ST.tab)[1]}</div><div class="sp"></div><div class="dt">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</div><div class="av">A</div></header><main id="view">${body}</main></div></div>`;
     const side = $('side'), scrim = $('scrim'); const tog = on => { side.classList.toggle('open', on); scrim.classList.toggle('on', on); };

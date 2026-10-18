@@ -101,12 +101,24 @@
     const nav = NAV.map(([g, items]) => `<h6>${g}</h6>` + items.map(([k, l, i]) => `<a class="it" href="#/${k}" data-k="${k}">${ic(i, 18)}<span>${l}</span></a>`).join('')).join('');
     const stb = { trial: badge('Essai · ' + SG.daysLeft(sc) + ' j restants', 'or'), active: badge('Abonné · ' + SG.daysLeft(sc) + ' j', 'ok') }[st] || '';
     document.getElementById('root').innerHTML = `<div class="shell"><aside class="side" id="side"><div class="side-brand"><div class="lg">${S.logo ? `<img src="${S.logo}" alt="">` : 'G'}</div><div style="min-width:0"><b>${esc(S.name || 'Mon école')}</b><small>${esc(S.year)}</small></div></div><nav>${nav}</nav><div class="side-foot">${stb}<div>${esc(sc.director)}</div><a href="#" id="logout">${ic('out', 16)}Se déconnecter</a></div></aside><div class="scrim" id="scrim"></div>
-      <div class="main"><header class="top"><button class="mb" id="mb" aria-label="Menu">${ic('menu', 24)}</button><div class="tt" id="ttl"></div><div class="sp"></div><div class="sync" id="sync"></div><div class="dt">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div><div class="av">${esc((sc.director || 'D')[0].toUpperCase())}</div></header><div id="banners"></div><main id="view"></main></div></div>`;
+      <div class="main"><header class="top"><button class="mb" id="mb" aria-label="Menu">${ic('menu', 24)}</button><div class="tt" id="ttl"></div><div class="sp"></div><div class="sync" id="sync"></div><button class="bellb" id="bell" type="button" aria-label="Messages de School-G" title="Messages de School-G" style="display:none">${ic('bell', 18)}<span class="n" id="bellN" style="display:none"></span></button><div class="dt">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div><div class="av">${esc((sc.director || 'D')[0].toUpperCase())}</div></header><div id="banners"></div><main id="view"></main></div></div>`;
     const bn = [];
     if (sess.byAdmin) bn.push(`<div class="banner adm">${ic('shield', 18)}Mode administrateur : vous consultez cette école. <a href="#" id="exitAdm" style="font-weight:700;text-decoration:underline">Quitter</a></div>`);
     const g = SG.global(); if (g.announcement) bn.push(`<div class="banner info">${ic('bell', 18)}<span>${esc(g.announcement)}</span></div>`);
     if (st === 'trial') bn.push(`<div class="banner trial"><span>Essai gratuit : <b>${SG.daysLeft(sc)} jour(s)</b> restant(s).</span><button class="btn btn-primary btn-sm" data-sub="new">M'abonner</button></div>`);
     else if (st === 'active' && SG.daysLeft(sc) <= 7) bn.push(`<div class="banner trial"><span>Votre abonnement se termine dans <b>${SG.daysLeft(sc)} jour(s)</b>.</span><button class="btn btn-primary btn-sm" data-sub="renew">Renouveler</button></div>`);
+    if (!sess.byAdmin) {
+      const key = 'sg_seen_' + sc.id; const seen = () => { try { return +localStorage.getItem(key) || 0; } catch (e) { return 0; } };
+      let first = true, list = [];
+      const draw = () => { const n = list.filter(m => m.createdMs > seen()).length; const b = document.getElementById('bell'), c = document.getElementById('bellN'); if (!b) return; b.style.display = list.length ? '' : 'none'; c.style.display = n ? '' : 'none'; c.textContent = n; };
+      const open = () => {
+        const s0 = seen();
+        UI.modal({ title: 'Messages de School-G', size: 'md', body: list.length ? list.map(m => `<div class="msgi ${m.createdMs > s0 ? 'new' : ''}"><h4>${esc(m.title)}</h4><small>${new Date(m.createdMs).toLocaleString('fr-FR')}</small><p>${esc(m.body)}</p></div>`).join('') : '<p class="muted">Aucun message.</p>', actions: [{ label: 'Fermer' }] });
+        try { localStorage.setItem(key, String(Math.max(0, ...list.map(m => m.createdMs)))); } catch (e) { } draw();
+      };
+      document.getElementById('bell').onclick = open;
+      SG.watchMessages(sc.id, l => { list = l; draw(); if (l.some(m => m.createdMs > seen()) && !document.querySelector('.ov')) { if (first) setTimeout(open, 600); else UI.toast('Nouveau message de School-G', 'ok'); } first = false; });
+    }
     document.getElementById('banners').innerHTML = bn.join('');
     const side = document.getElementById('side'), scrim = document.getElementById('scrim');
     const tog = on => { side.classList.toggle('open', on); scrim.classList.toggle('on', on); };

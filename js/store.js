@@ -241,5 +241,10 @@
   };
   SG.logs = async () => { const snap = await db.collection('logs').orderBy('tMs', 'desc').limit(120).get(); const l = []; snap.forEach(d => l.push(d.data())); return l; };
   SG.log = msg => { if (SG.isAdmin()) db.collection('logs').add({ m: msg, tMs: Date.now() }).catch(() => { }); };
+  /* Messages de l'administrateur : target = 'all' (toutes les écoles) ou l'identifiant d'une école */
+  SG.sendMessage = async o => { await db.collection('msgs').add({ target: o.target, targetName: o.targetName || '', title: String(o.title || '').trim(), body: String(o.body || '').trim(), createdMs: Date.now() }); SG.log('Message envoyé à ' + (o.target === 'all' ? 'toutes les écoles' : o.targetName) + ' : ' + o.title); };
+  SG.deleteMessage = id => db.collection('msgs').doc(id).delete();
+  SG.allMessages = async () => { const snap = await db.collection('msgs').orderBy('createdMs', 'desc').limit(100).get(); const l = []; snap.forEach(d => l.push(Object.assign({ id: d.id }, d.data()))); return l; };
+  SG.watchMessages = (uid, cb) => db.collection('msgs').where('target', 'in', ['all', uid]).onSnapshot(snap => { const l = []; snap.forEach(d => l.push(Object.assign({ id: d.id }, d.data()))); l.sort((a, b) => b.createdMs - a.createdMs); cb(l); }, () => cb([]));
   SG.sendReset = email => SG.resetPassword(email);
 })();
