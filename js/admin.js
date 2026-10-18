@@ -16,7 +16,7 @@
       <button class="btn btn-ghost btn-lg" id="g" style="width:100%;gap:10px">${G}Continuer avec Google</button>
       <div style="display:flex;align-items:center;gap:12px;color:var(--mute);font-size:12.5px;margin:16px 0"><span style="flex:1;height:1px;background:var(--line2)"></span>ou<span style="flex:1;height:1px;background:var(--line2)"></span></div>
       <form class="frm" id="f" novalidate><div class="fld"><label>Email</label><input type="email" name="email" autocomplete="username" required></div><div class="fld"><label>Mot de passe</label><input type="password" name="pw" autocomplete="current-password" required></div><div class="fld"><button class="btn btn-navy btn-lg" style="width:100%">Se connecter</button></div></form>
-      <p class="small" style="margin-top:14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><button class="btn-link" id="mk" type="button" style="background:none;border:0;color:var(--orange-d);font-weight:600;padding:0">Première connexion : créer le compte</button><a href="index.html" class="muted">Retour au site</a></p></div></div>`;
+      <p class="small" style="margin-top:14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><button class="btn-link" id="mk" type="button" style="background:none;border:0;color:var(--orange-d);font-weight:600;padding:0">Première connexion : créer le compte</button><button class="btn-link" id="fg" type="button" style="background:none;border:0;color:var(--orange-d);font-weight:600;padding:0">Mot de passe oublié</button><a href="index.html" class="muted">Retour au site</a></p></div></div>`;
     const say = (m, k) => { const e = $('msg'); e.textContent = m; e.style.display = 'block'; e.style.background = k === 'ok' ? 'var(--green-s)' : 'var(--red-s)'; e.style.color = k === 'ok' ? 'var(--green)' : 'var(--red)'; };
     const check = async () => {
       const u = SG.user; if (!u) return;
@@ -26,6 +26,12 @@
     };
     $('g').onclick = async () => { try { const u = await SG.loginGoogle(); if (u) await check(); } catch (x) { say(SG.errMsg(x)); } };
     $('f').onsubmit = async e => { e.preventDefault(); const v = UI.read($('f')); if (!v.email || !v.pw) return say('Renseignez votre email et votre mot de passe.'); try { await SG.loginEmail(v.email, v.pw); await check(); } catch (x) { say(SG.errMsg(x)); } };
+    $('fg').onclick = async () => {
+      const em = (UI.read($('f')).email || '').trim();
+      if (!em) return say('Saisissez l\'email administrateur ci-dessus, puis cliquez sur « Mot de passe oublié ».');
+      if (em.toLowerCase() !== SG_CONFIG.adminEmail.toLowerCase()) return say('Seul l\'email administrateur peut être utilisé ici.');
+      try { await SG.resetPassword(em); say('Email envoyé à ' + em + ' : cliquez sur le lien pour choisir votre mot de passe (vérifiez aussi les spams).', 'ok'); } catch (x) { say(SG.errMsg(x)); }
+    };
     $('mk').onclick = async () => {
       const v = UI.read($('f')); if (!v.email || !v.pw) return say('Saisissez l\'email administrateur et le mot de passe voulu, puis cliquez à nouveau.');
       if (v.email.trim().toLowerCase() !== SG_CONFIG.adminEmail.toLowerCase()) return say('Seul l\'email administrateur peut créer ce compte.');
