@@ -87,6 +87,20 @@
   };
   document.addEventListener('click', e => { const b = e.target.closest('[data-sub]'); if (b) { e.preventDefault(); A.subscribe(school0, b.dataset.sub === 'renew'); } });
 
+  /* Espace parent : partager le lien ou le visiter */
+  A.parentLink = () => new URL('login.html#parent', location.href).href;
+  A.parentModal = () => {
+    const sc = A.school(), url = A.parentLink();
+    const text = 'Espace parent de ' + (D.settings.name || sc.name) + '. Ouvrez ce lien : ' + url + ' puis saisissez le code de l\'école ' + sc.code + ', le matricule de votre enfant et le code parent remis par l\'école.';
+    const m = UI.modal({ title: 'Espace parent', size: 'sm', actions: [{ label: 'Fermer' }], body: `<p class="muted" style="margin-bottom:12px">Les parents suivent leur enfant avec ce lien : notes, bulletins, paiements, présences et avis.</p><div class="fld"><label>Lien de l'espace parent</label><input type="text" readonly value="${esc(url)}" id="plink" onclick="this.select()"></div><p class="small muted" style="margin:6px 0 14px">Code de l'école à leur communiquer : <b>${esc(sc.code)}</b></p><div style="display:grid;gap:8px"><button class="btn btn-primary" type="button" data-pa="share">Partager le lien</button><button class="btn btn-ghost" type="button" data-pa="copy">Copier le lien</button><a class="btn btn-ghost" target="_blank" rel="noopener" href="${esc(url)}">Visiter l'espace parent</a></div>` });
+    m.el.addEventListener('click', async e => {
+      const b = e.target.closest('[data-pa]'); if (!b) return;
+      if (b.dataset.pa === 'copy') { try { await navigator.clipboard.writeText(url); UI.toast('Lien copié.', 'ok'); } catch (x) { const i = m.el.querySelector('#plink'); i.select(); document.execCommand && document.execCommand('copy'); UI.toast('Lien copié.', 'ok'); } return; }
+      try { if (navigator.share) await navigator.share({ title: 'Espace parent', text }); else window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener'); } catch (x) { }
+    });
+  };
+  document.addEventListener('click', e => { if (e.target.closest('[data-parent]')) { e.preventDefault(); A.parentModal(); } });
+
   function lockScreen(sc, st) {
     const g = SG.global();
     const msg = { banned: ['Compte banni', "L'accès de cette école a été suspendu par l'administrateur de School-G."], blocked: ['Compte bloqué', "L'accès de cette école est momentanément bloqué. Contactez l'équipe School-G pour le réactiver."], expired: [sc.paidUntil ? 'Abonnement expiré' : 'Essai gratuit terminé', 'Vos 7 jours d\'essai sont écoulés. Vos données sont conservées : abonnez-vous pour retrouver immédiatement votre école.'] }[st];
@@ -100,8 +114,8 @@
     document.title = (S.name || 'School-G') + ', espace direction';
     const nav = NAV.map(([g, items]) => `<h6>${g}</h6>` + items.map(([k, l, i]) => `<a class="it" href="#/${k}" data-k="${k}">${ic(i, 18)}<span>${l}</span></a>`).join('')).join('');
     const stb = { trial: badge('Essai · ' + SG.daysLeft(sc) + ' j restants', 'or'), active: badge('Abonné · ' + SG.daysLeft(sc) + ' j', 'ok') }[st] || '';
-    document.getElementById('root').innerHTML = `<div class="shell"><aside class="side" id="side"><div class="side-brand"><div class="lg">${S.logo ? `<img src="${S.logo}" alt="">` : 'G'}</div><div style="min-width:0"><b>${esc(S.name || 'Mon école')}</b><small>${esc(S.year)}</small></div></div><nav>${nav}</nav><div class="side-foot">${stb}<div>${esc(sc.director)}</div><a href="#" id="logout">${ic('out', 16)}Se déconnecter</a></div></aside><div class="scrim" id="scrim"></div>
-      <div class="main"><header class="top"><button class="mb" id="mb" aria-label="Menu">${ic('menu', 24)}</button><div class="tt" id="ttl"></div><div class="sp"></div><div class="sync" id="sync"></div><button class="bellb" id="bell" type="button" aria-label="Messages de School-G" title="Messages de School-G" style="display:none">${ic('bell', 18)}<span class="n" id="bellN" style="display:none"></span></button><div class="dt">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div><div class="av">${esc((sc.director || 'D')[0].toUpperCase())}</div></header><div id="banners"></div><main id="view"></main></div></div>`;
+    document.getElementById('root').innerHTML = `<div class="shell"><aside class="side" id="side"><div class="side-brand"><div class="lg">${S.logo ? `<img src="${S.logo}" alt="">` : 'G'}</div><div style="min-width:0"><b>${esc(S.name || 'Mon école')}</b><small>${esc(S.year)}</small></div></div><nav>${nav}</nav><div class="side-foot">${stb}<div>${esc(sc.director)}</div><div class="foot-btns">${SG.isAdmin() ? '<a class="btn btn-primary btn-sm" href="admin.html" id="admBtn">' + ic('shield', 16) + 'Panel admin</a>' : ''}<button class="btn btn-ghost btn-sm" type="button" data-parent>' + ic('users', 16) + 'Espace parent</button></div><a href="#" id="logout">${ic('out', 16)}Se déconnecter</a></div></aside><div class="scrim" id="scrim"></div>
+      <div class="main"><header class="top"><button class="mb" id="mb" aria-label="Menu">${ic('menu', 24)}</button><div class="tt" id="ttl"></div><div class="sp"></div><button class="btn btn-ghost btn-sm topparent" type="button" data-parent>${ic('users', 16)}<span>Espace parent</span></button><div class="sync" id="sync"></div><button class="bellb" id="bell" type="button" aria-label="Messages de School-G" title="Messages de School-G" style="display:none">${ic('bell', 18)}<span class="n" id="bellN" style="display:none"></span></button><div class="dt">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div><div class="av">${esc((sc.director || 'D')[0].toUpperCase())}</div></header><div id="banners"></div><main id="view"></main></div></div>`;
     const bn = [];
     if (sess.byAdmin) bn.push(`<div class="banner adm">${ic('shield', 18)}Mode administrateur : vous consultez cette école. <a href="#" id="exitAdm" style="font-weight:700;text-decoration:underline">Quitter</a></div>`);
     const g = SG.global(); if (g.announcement) bn.push(`<div class="banner info">${ic('bell', 18)}<span>${esc(g.announcement)}</span></div>`);
