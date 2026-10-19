@@ -69,12 +69,12 @@
 
   /* ---------- navigation ---------- */
   const NAV = [
-    ['Pilotage', [['dashboard', 'Tableau de bord', 'home'], ['students', 'Élèves', 'users'], ['attendance', 'Pointage', 'check'], ['classes', 'Classes et matières', 'layers'], ['teachers', 'Professeurs', 'user'], ['timetable', 'Emplois du temps', 'cal']]],
+    ['Pilotage', [['dashboard', 'Tableau de bord', 'home'], ['students', 'Élèves', 'users'], ['attendance', 'Pointage', 'check'], ['classes', 'Classes et matières', 'layers'], ['teachers', 'Professeurs', 'user'], ['timetable', 'Emplois du temps', 'cal'], ['tuto', 'Tutoriel', 'book']]],
     ['Scolarité', [['grades', 'Notes', 'book'], ['bulletins', 'Bulletins', 'award'], ['cards', 'Cartes scolaires', 'id'], ['notices', 'Avis aux parents', 'bell']]],
     ['Finances', [['payments', 'Paiements et scolarité', 'card'], ['cantine', 'Cantine', 'cup'], ['stock', 'Stock et tenues', 'box'], ['expenses', 'Dépenses', 'down'], ['accounting', 'Comptabilité', 'wallet']]],
     ['Compte', [['settings', 'Paramètres', 'set']]]
   ];
-  const TITLES = {}; NAV.forEach(g => g[1].forEach(i => TITLES[i[0]] = i[1])); TITLES.student = 'Fiche élève';
+  const TITLES = {}; NAV.forEach(g => g[1].forEach(i => TITLES[i[0]] = i[1])); TITLES.student = 'Fiche élève'; delete TITLES.tuto;
 
   /* Fenêtre « M'abonner » : chaque formule ouvre WhatsApp avec un message prérempli. */
   A.subscribe = (sc, renew) => {
@@ -118,7 +118,7 @@
     const sc = A.school(), S = D.settings, st = SG.status(sc);
     document.documentElement.style.setProperty('--orange', S.accent || '#E4572E');
     document.title = (S.name || 'School-G') + ', espace direction';
-    const nav = NAV.map(([g, items]) => `<h6>${g}</h6>` + items.map(([k, l, i]) => `<a class="it" href="#/${k}" data-k="${k}">${ic(i, 18)}<span>${l}</span></a>`).join('')).join('');
+    const nav = NAV.map(([g, items]) => `<h6>${g}</h6>` + items.map(([k, l, i]) => k === 'tuto' ? `<a class="it" href="#" data-tour data-k="tuto">${ic(i, 18)}<span>${l}</span></a>` : `<a class="it" href="#/${k}" data-k="${k}">${ic(i, 18)}<span>${l}</span></a>`).join('')).join('');
     const stb = { trial: badge('Essai · ' + SG.daysLeft(sc) + ' j restants', 'or'), active: badge('Abonné · ' + SG.daysLeft(sc) + ' j', 'ok') }[st] || '';
     document.getElementById('root').innerHTML = `<div class="shell"><aside class="side" id="side"><div class="side-brand"><div class="lg">${S.logo ? `<img src="${S.logo}" alt="">` : 'G'}</div><div style="min-width:0"><b>${esc(S.name || 'Mon école')}</b><small>${esc(S.year)}</small></div></div><nav>${nav}</nav><div class="side-foot">${stb}<div>${esc(sc.director)}</div><div class="foot-btns">${SG.isAdmin() ? '<a class="btn btn-primary btn-sm" href="admin.html" id="admBtn">' + ic('shield', 16) + 'Panel admin</a>' : ''}<button class="btn btn-ghost btn-sm" type="button" data-parent>${ic('users', 16)}Espace parent</button></div><a href="#" id="logout">${ic('out', 16)}Se déconnecter</a></div></aside><div class="scrim" id="scrim"></div>
       <div class="main"><header class="top"><button class="mb" id="mb" aria-label="Menu">${ic('menu', 24)}</button><div class="tt" id="ttl"></div><div class="sp"></div><button class="btn btn-ghost btn-sm topparent" type="button" data-parent>${ic('users', 16)}<span>Espace parent</span></button><div class="sync" id="sync"></div><button class="bellb" type="button" data-tour aria-label="Mode d'emploi" title="Mode d'emploi" style="font-weight:700;margin-right:6px">?</button><button class="bellb" id="bell" type="button" aria-label="Messages de School-G" title="Messages de School-G" style="display:none">${ic('bell', 18)}<span class="n" id="bellN" style="display:none"></span></button><div class="dt">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div><div class="av">${esc((sc.director || 'D')[0].toUpperCase())}</div></header><div id="banners"></div><main id="view"></main></div></div>`;
