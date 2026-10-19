@@ -49,7 +49,7 @@
     const studs = D.students.filter(s => s.classId === ST.bCls && s.status !== 'radié').sort((a, b) => A.name(a).localeCompare(A.name(b)));
     if (!studs.find(s => s.id === ST.bStu)) ST.bStu = studs[0] && studs[0].id;
     const themes = [...DOC.THEMES.map(t => [t.id, t.name]), ['custom', 'Personnalisé']];
-    A.view(`${A.head('Bulletins', 'Cinq thèmes prêts à imprimer et un thème entièrement personnalisable', A.btn('bul-print', 'Imprimer ce bulletin', { icon: 'print' }) + A.btn('bul-all', 'Imprimer toute la classe', { cls: 'btn-primary', icon: 'print' }))}
+    A.view(`${A.head('Bulletins', 'Cinq thèmes prêts à imprimer et un thème entièrement personnalisable', A.btn('bul-import', 'Importer un design (photo)', { icon: 'up' }) + A.btn('bul-print', 'Imprimer ce bulletin', { icon: 'print' }) + A.btn('bul-all', 'Imprimer toute la classe', { cls: 'btn-primary', icon: 'print' }))}
     <div class="tools">${A.sel('bCls', A.classOpts(), ST.bCls, { re: true })}${A.sel('bPer', D.settings.periods.map(p => [p, p]), ST.bPer, { re: true })}${A.sel('bStu', studs.map(s => [s.id, A.name(s)]), ST.bStu, { re: true })}</div>
     <div class="sw" style="margin-bottom:16px">${themes.map(([id, n]) => `<button class="${ST.bTheme === id ? 'on' : ''}" data-act="bth" data-id="${id}">${esc(n)}</button>`).join('')}</div>
     <div class="g21" style="align-items:start"><div class="bl-wrap" id="prev"></div><div class="card" id="cust" ${ST.bTheme === 'custom' ? '' : 'hidden'}><div class="ch"><h3>Thème personnalisé</h3>${A.btn('ct-base', 'Partir d\'un modèle', { sm: true })}</div><div class="cb"><div class="frm" id="ctf"></div></div></div></div>`);
