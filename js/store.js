@@ -58,7 +58,7 @@
   };
   SG.resetPassword = email => auth.sendPasswordResetEmail(String(email).trim());
   SG.sendVerification = () => SG.user.sendEmailVerification();
-  SG.logout = async () => { SG.stopWatch(); try { await SG.flushAll(); } catch (e) { } await auth.signOut(); };
+  SG.logout = async () => { SG.adminCodeClear(); SG.stopWatch(); try { await SG.flushAll(); } catch (e) { } await auth.signOut(); };
   SG.changePassword = async (oldPw, newPw) => {
     const u = SG.user; await u.reauthenticateWithCredential(fb.auth.EmailAuthProvider.credential(u.email, oldPw)); await u.updatePassword(newPw);
   };
@@ -246,5 +246,15 @@
   SG.deleteMessage = id => db.collection('msgs').doc(id).delete();
   SG.allMessages = async () => { const snap = await db.collection('msgs').orderBy('createdMs', 'desc').limit(100).get(); const l = []; snap.forEach(d => l.push(Object.assign({ id: d.id }, d.data()))); return l; };
   SG.watchMessages = (uid, cb) => db.collection('msgs').where('target', 'in', ['all', uid]).onSnapshot(snap => { const l = []; snap.forEach(d => l.push(Object.assign({ id: d.id }, d.data()))); l.sort((a, b) => b.createdMs - a.createdMs); cb(l); }, () => cb([]));
+  /* Code d'accès au panel admin (en plus de la connexion). Vérifié ici dans le navigateur : la vraie protection des données reste les règles Firestore. */
+  const AK = 'sg_adm_ok'; let _fails = 0, _until = 0;
+  SG.adminCodeOk = () => { try { return sessionStorage.getItem(AK) === '1'; } catch (e) { return false; } };
+  SG.adminCodeClear = () => { try { sessionStorage.removeItem(AK); } catch (e) { } };
+  SG.checkAdminCode = async code => {
+    if (Date.now() < _until) return 'Trop d\'essais. Réessayez dans ' + Math.ceil((_until - Date.now()) / 1000) + ' secondes.';
+    if (await SG.hash(String(code || '')) === SG_CONFIG.adminCodeHash) { _fails = 0; try { sessionStorage.setItem(AK, '1'); } catch (e) { } return true; }
+    if (++_fails >= 5) { _fails = 0; _until = Date.now() + 60000; return 'Code incorrect. Trop d\'essais : attendez une minute.'; }
+    return 'Code d\'accès incorrect.';
+  };
   SG.sendReset = email => SG.resetPassword(email);
 })();

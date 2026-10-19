@@ -166,11 +166,18 @@
     drawList();
   }
 
+  function codeView(msg) {
+    root.innerHTML = `<div class="lock"><div class="box"><div class="ic">${ic('lock', 28)}</div><h1>Code d'accès</h1><p>Saisissez le code d'accès administrateur pour continuer.</p><div id="cerr" style="display:${msg ? 'block' : 'none'};background:var(--red-s);color:var(--red);padding:10px 12px;border-radius:6px;font-size:14px;margin-bottom:14px">${esc(msg || '')}</div><form id="cf" class="frm"><div class="fld"><input type="password" name="code" autocomplete="off" placeholder="Code d'accès" autofocus></div><div class="fld"><button class="btn btn-navy btn-lg" style="width:100%">Valider</button></div></form><p class="small" style="margin-top:12px"><a href="#" id="cout" class="muted">Se déconnecter</a></p></div></div>`;
+    $('cf').onsubmit = async e => { e.preventDefault(); const r = await SG.checkAdminCode($('cf').code.value); if (r === true) return boot(); codeView(r); };
+    $('cout').onclick = async e => { e.preventDefault(); await SG.logout(); loginView(); };
+  }
+
   async function boot() {
     root.innerHTML = '<div class="lock"><div class="box"><p class="muted">Chargement…</p></div></div>';
     await SG.ready(); const u = SG.user;
     if (!u) return loginView();
     if (!SG.isAdmin()) { await SG.logout(); return loginView('Ce compte n\'est pas administrateur.'); }
+    if (!SG.adminCodeOk()) return codeView();
     try { await load(); } catch (e) { return loginView('Lecture impossible : ' + SG.errMsg(e) + ' Vérifiez les règles Firestore et l\'email administrateur.'); }
     render();
   }

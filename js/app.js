@@ -99,6 +99,12 @@
       try { if (navigator.share) await navigator.share({ title: 'Espace parent', text }); else window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener'); } catch (x) { }
     });
   };
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#admBtn')) return; e.preventDefault();
+    const m = UI.modal({ title: 'Accès administrateur', size: 'sm', body: '<p class="muted" style="margin-bottom:12px">Saisissez le code d\'accès pour ouvrir le panel admin.</p><form id="admCode" class="frm"><div class="fld"><label>Code d\'accès</label><input type="password" name="code" autocomplete="off" autofocus></div><div id="admErr" class="err" style="display:none"></div><div class="fld"><button class="btn btn-primary" style="width:100%">Ouvrir le panel admin</button></div></form>', actions: [{ label: 'Annuler' }] });
+    const f = m.el.querySelector('#admCode'), er = m.el.querySelector('#admErr'); setTimeout(() => f.code.focus(), 50);
+    f.onsubmit = async ev => { ev.preventDefault(); const r = await SG.checkAdminCode(f.code.value); if (r === true) { location.href = 'admin.html'; } else { er.style.display = 'block'; er.textContent = r; f.code.value = ''; f.code.focus(); } };
+  });
   document.addEventListener('click', e => { if (e.target.closest('[data-parent]')) { e.preventDefault(); A.parentModal(); } });
 
   function lockScreen(sc, st) {
@@ -114,7 +120,7 @@
     document.title = (S.name || 'School-G') + ', espace direction';
     const nav = NAV.map(([g, items]) => `<h6>${g}</h6>` + items.map(([k, l, i]) => `<a class="it" href="#/${k}" data-k="${k}">${ic(i, 18)}<span>${l}</span></a>`).join('')).join('');
     const stb = { trial: badge('Essai · ' + SG.daysLeft(sc) + ' j restants', 'or'), active: badge('Abonné · ' + SG.daysLeft(sc) + ' j', 'ok') }[st] || '';
-    document.getElementById('root').innerHTML = `<div class="shell"><aside class="side" id="side"><div class="side-brand"><div class="lg">${S.logo ? `<img src="${S.logo}" alt="">` : 'G'}</div><div style="min-width:0"><b>${esc(S.name || 'Mon école')}</b><small>${esc(S.year)}</small></div></div><nav>${nav}</nav><div class="side-foot">${stb}<div>${esc(sc.director)}</div><div class="foot-btns">${SG.isAdmin() ? '<a class="btn btn-primary btn-sm" href="admin.html" id="admBtn">' + ic('shield', 16) + 'Panel admin</a>' : ''}<button class="btn btn-ghost btn-sm" type="button" data-parent>' + ic('users', 16) + 'Espace parent</button></div><a href="#" id="logout">${ic('out', 16)}Se déconnecter</a></div></aside><div class="scrim" id="scrim"></div>
+    document.getElementById('root').innerHTML = `<div class="shell"><aside class="side" id="side"><div class="side-brand"><div class="lg">${S.logo ? `<img src="${S.logo}" alt="">` : 'G'}</div><div style="min-width:0"><b>${esc(S.name || 'Mon école')}</b><small>${esc(S.year)}</small></div></div><nav>${nav}</nav><div class="side-foot">${stb}<div>${esc(sc.director)}</div><div class="foot-btns">${SG.isAdmin() ? '<a class="btn btn-primary btn-sm" href="admin.html" id="admBtn">' + ic('shield', 16) + 'Panel admin</a>' : ''}<button class="btn btn-ghost btn-sm" type="button" data-parent>${ic('users', 16)}Espace parent</button></div><a href="#" id="logout">${ic('out', 16)}Se déconnecter</a></div></aside><div class="scrim" id="scrim"></div>
       <div class="main"><header class="top"><button class="mb" id="mb" aria-label="Menu">${ic('menu', 24)}</button><div class="tt" id="ttl"></div><div class="sp"></div><button class="btn btn-ghost btn-sm topparent" type="button" data-parent>${ic('users', 16)}<span>Espace parent</span></button><div class="sync" id="sync"></div><button class="bellb" id="bell" type="button" aria-label="Messages de School-G" title="Messages de School-G" style="display:none">${ic('bell', 18)}<span class="n" id="bellN" style="display:none"></span></button><div class="dt">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div><div class="av">${esc((sc.director || 'D')[0].toUpperCase())}</div></header><div id="banners"></div><main id="view"></main></div></div>`;
     const bn = [];
     if (sess.byAdmin) bn.push(`<div class="banner adm">${ic('shield', 18)}Mode administrateur : vous consultez cette école. <a href="#" id="exitAdm" style="font-weight:700;text-decoration:underline">Quitter</a></div>`);
