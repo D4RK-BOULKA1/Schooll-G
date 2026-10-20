@@ -114,6 +114,14 @@
     document.getElementById('lkOut').onclick = async () => { await SG.logout(); location.href = 'login.html'; };
   }
 
+  /* Met à jour le nom, le logo et la couleur de l'école partout, sans recharger la page. */
+  A.refreshBrand = () => {
+    const S = D.settings || {}, sb = document.querySelector('.side-brand');
+    if (sb) { const lg = sb.querySelector('.lg'), nm = sb.querySelector('b'), yr = sb.querySelector('small'); if (lg) lg.innerHTML = S.logo ? `<img src="${S.logo}" alt="">` : 'G'; if (nm) nm.textContent = S.name || 'Mon école'; if (yr) yr.textContent = S.year || ''; }
+    document.title = (S.name || 'School-G') + ', espace direction';
+    if (S.accent) document.documentElement.style.setProperty('--orange', S.accent);
+    try { const lg = S.logo || ''; localStorage.setItem('sg_brand', JSON.stringify({ id: school0.id, name: S.name || school0.name, logo: lg.length < 150000 ? lg : '' })); } catch (e) { }
+  };
   function shell() {
     const sc = A.school(), S = D.settings, st = SG.status(sc);
     document.documentElement.style.setProperty('--orange', S.accent || '#E4572E');

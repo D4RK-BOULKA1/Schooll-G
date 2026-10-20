@@ -25,7 +25,7 @@
     </div>`);
     document.getElementById('imp').onchange = e => {
       const f = e.target.files[0]; if (!f) return; const r = new FileReader();
-      r.onload = () => { try { const d = JSON.parse(r.result); if (!d || !Array.isArray(d.students) || !Array.isArray(d.classes) || !d.settings) throw new Error('Fichier invalide'); UI.confirm('Remplacer toutes les données de l\'école par cette sauvegarde ?', () => { Object.keys(D).forEach(k => delete D[k]); Object.assign(D, d); A.save(); UI.toast('Sauvegarde importée.', 'ok'); SG.flush(A.school().id).then(() => location.reload()); }, { danger: true, yes: 'Remplacer' }); } catch (x) { UI.toast('Fichier de sauvegarde invalide.', 'err'); } };
+      r.onload = () => { try { const d = JSON.parse(r.result); if (!d || !Array.isArray(d.students) || !Array.isArray(d.classes) || !d.settings) throw new Error('Fichier invalide'); UI.confirm('Remplacer toutes les données de l\'école par cette sauvegarde ?', () => { Object.keys(D).forEach(k => delete D[k]); Object.assign(D, d); A.save(); UI.toast('Sauvegarde importée.', 'ok'); SG.flush(A.school().id).catch(() => { }).then(() => { A.refreshBrand(); A.rerender(); }); }, { danger: true, yes: 'Remplacer' }); } catch (x) { UI.toast('Fichier de sauvegarde invalide.', 'err'); } };
       r.readAsText(f);
     };
     const trs = document.getElementById('trs');
@@ -33,7 +33,7 @@
   };
   ACT['tr-add'] = () => { ST.tr.push({ label: 'Tranche ' + (ST.tr.length + 1), pct: 0, due: today() }); document.getElementById('trs').innerHTML = trRows(); };
   ACT['tr-rm'] = el => { ST.tr.splice(+el.dataset.id, 1); document.getElementById('trs').innerHTML = trRows(); };
-  ACT['set-info'] = () => { const v = UI.read(document.getElementById('f-info')); if (!v.name.trim()) return UI.toast('Le nom de l\'école est obligatoire.', 'err'); Object.assign(D.settings, v); A.save(); document.documentElement.style.setProperty('--orange', v.accent); UI.toast('Informations enregistrées.', 'ok'); SG.db.collection('schools').doc(A.school().id).update({ name: v.name.trim(), updatedAtMs: Date.now() }).catch(() => { }); SG.flush(A.school().id).then(() => location.reload()); };
+  ACT['set-info'] = () => { const v = UI.read(document.getElementById('f-info')); if (!v.name.trim()) return UI.toast('Le nom de l\'école est obligatoire.', 'err'); Object.assign(D.settings, v); A.save(); document.documentElement.style.setProperty('--orange', v.accent); UI.toast('Informations enregistrées.', 'ok'); SG.db.collection('schools').doc(A.school().id).update({ name: v.name.trim(), updatedAtMs: Date.now() }).catch(() => { }); SG.flush(A.school().id).catch(() => { }); A.refreshBrand(); A.rerender(); };
   ACT['set-ped'] = () => {
     const tot = ST.tr.reduce((a, t) => a + (+t.pct || 0), 0); if (!ST.tr.length || tot !== 100) return UI.toast('Le total des tranches doit faire 100 % (actuellement ' + tot + ' %).', 'err');
     const v = UI.read(document.getElementById('f-ped')); const per = v.periods.split('\n').map(x => x.trim()).filter(Boolean); if (!per.length) return UI.toast('Indiquez au moins une période.', 'err');
