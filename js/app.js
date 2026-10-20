@@ -207,20 +207,24 @@
 
   A.boot = async () => {
     const root = document.getElementById('root');
-    root.innerHTML = '<div class="lock"><div class="box"><p class="muted">Chargement de votre école…</p></div></div>';
+    let cache = null; try { cache = JSON.parse(localStorage.getItem('sg_brand') || 'null'); } catch (e) { }
+    const ld = UI.loading(root, { name: cache && cache.name, logo: cache && cache.logo, msg: 'Connexion sécurisée…' });
     try {
-      const user = await SG.ready();
+      const user = await SG.ready(); ld.set(38, 'Récupération de votre école…');
       if (!user) return location.replace('login.html');
       const vid = new URLSearchParams(location.search).get('view');
       let id = user.uid;
       if (vid && SG.isAdmin()) { id = vid; sess.byAdmin = true; }
-      school0 = await SG.school(id);
+      school0 = await SG.school(id); ld.set(62, 'Chargement de vos données…');
       if (!school0) return location.replace('login.html#finish');
+      if (!cache || cache.id !== school0.id) ld.brand({ name: school0.name });
       const st0 = SG.status(school0);
       if (st0 !== 'trial' && st0 !== 'active' && !sess.byAdmin) return lockScreen(school0, st0);
       SG.setCurrent(school0);
       const data = await SG.loadData(school0.id, { school: school0 });
-      Object.keys(D).forEach(k => delete D[k]); Object.assign(D, data);
+      Object.keys(D).forEach(k => delete D[k]); Object.assign(D, data); ld.set(90, 'Préparation de votre espace…');
+      try { const lg = (D.settings && D.settings.logo) || ''; localStorage.setItem('sg_brand', JSON.stringify({ id: school0.id, name: (D.settings && D.settings.name) || school0.name, logo: lg.length < 150000 ? lg : '' })); } catch (e) { }
+      ld.brand({ name: (D.settings && D.settings.name) || school0.name, logo: D.settings && D.settings.logo }); await ld.done();
       SG.watchData(school0.id, D, () => { if (!document.querySelector('.ov') && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) route(); else UI.toast('Mise à jour reçue d\'un autre appareil.'); });
       shell(); window.addEventListener('hashchange', route); route(); if (A.tourMaybe) A.tourMaybe();
     } catch (e) {

@@ -73,7 +73,7 @@
     draw();
   }
 
-  root.innerHTML = '<div style="min-height:100vh;display:grid;place-items:center"><p class="muted">Chargement…</p></div>';
+  const ld = UI.loading(root, { name: 'School-G', sub: 'Espace parent', msg: 'Chargement du suivi de votre enfant…' }); ld.set(85);
   unsub = SG.watchParent(sess, (e, cur) => {
     if (e) { if (e.message === 'gone') { return out(); } root.innerHTML = `<div style="min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center"><div><h1 style="font-size:24px;margin-bottom:10px">Connexion impossible</h1><p class="muted" style="margin-bottom:14px">${esc(SG.errMsg(e))}</p><button class="btn btn-navy" onclick="location.reload()">Réessayer</button></div></div>`; return; }
     try { build(cur); } catch (x) { console.error(x); }

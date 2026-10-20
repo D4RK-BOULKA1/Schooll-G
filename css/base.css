@@ -88,3 +88,15 @@ textarea{resize:vertical}
 .right{text-align:right}.nowrap{white-space:nowrap}
 @media(max-width:640px){.fld.half,.fld.third{flex:1 1 100%}.mdl-b{padding:16px}.ov{padding:0}.mdl{border-radius:0;min-height:100vh}}
 @media print{.noprint{display:none!important}}
+
+.ld{position:fixed;inset:0;background:#fff;display:grid;place-items:center;z-index:50;padding:24px}
+.ld-in{display:flex;flex-direction:column;align-items:center;text-align:center;animation:ldIn .5s ease both}
+.ld-logo{width:88px;height:88px;border-radius:22px;background:var(--orange);color:#fff;display:grid;place-items:center;overflow:hidden;box-shadow:0 8px 28px rgba(20,33,61,.12)}
+.ld-logo img{width:100%;height:100%;object-fit:contain;background:#fff}.ld-logo i{font-family:Fraunces,serif;font-style:normal;font-weight:700;font-size:46px;line-height:1}
+.ld-name{font-family:Fraunces,serif;font-size:26px;font-weight:700;color:var(--navy,#14213D);margin-top:20px;max-width:90vw}
+.ld-sub{font-size:13px;color:var(--mute);margin-top:4px;letter-spacing:.04em;text-transform:uppercase}.ld-sub:empty{display:none}
+.ld-bar{width:min(240px,70vw);height:4px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:28px}
+.ld-bar span{display:block;height:100%;width:0;background:var(--orange);border-radius:99px;transition:width .2s linear}
+.ld-msg{font-size:13px;color:var(--mute);margin-top:12px;min-height:18px}
+@keyframes ldIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.ld-in{animation:none}}

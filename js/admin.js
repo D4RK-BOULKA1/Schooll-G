@@ -173,8 +173,8 @@
   }
 
   async function boot() {
-    root.innerHTML = '<div class="lock"><div class="box"><p class="muted">Chargement…</p></div></div>';
-    await SG.ready(); const u = SG.user;
+    const ld = UI.loading(root, { name: 'School-G', sub: 'Administration', msg: 'Vérification de l\'accès…' });
+    await SG.ready(); const u = SG.user; ld.set(60, 'Chargement des écoles…');
     if (!u) return loginView();
     if (!SG.isAdmin()) { await SG.logout(); return loginView('Ce compte n\'est pas administrateur.'); }
     if (!SG.adminCodeOk()) return codeView();

@@ -19,6 +19,22 @@
   const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
   const monthLabel = ym => { const [y, m] = ym.split('-'); return MONTHS[+m - 1] + ' ' + y; };
   Object.assign(UI, { esc, money, fdate, uid, today, addDays, MONTHS, monthLabel });
+  /* Écran de chargement : logo, nom, barre de progression qui avance en douceur. */
+  UI.loading = (root, o = {}) => {
+    const logo = b => b.logo ? `<img src="${b.logo}" alt="">` : '<i>G</i>';
+    root.innerHTML = `<div class="ld"><div class="ld-in"><div class="ld-logo" id="ldLogo">${logo(o)}</div><div class="ld-name" id="ldName">${esc(o.name || 'School-G')}</div><div class="ld-sub" id="ldSub">${esc(o.sub || '')}</div><div class="ld-bar"><span id="ldFill"></span></div><div class="ld-msg" id="ldMsg"></div></div></div>`;
+    const $ = id => root.querySelector('#' + id); let cur = 4, cap = 18, dead = false;
+    const draw = () => { const f = $('ldFill'); if (f) f.style.width = cur.toFixed(1) + '%'; };
+    const tick = setInterval(() => { if (dead || !$('ldFill')) return clearInterval(tick); cur += (cap - cur) * .08; draw(); }, 120);
+    draw();
+    const c = {
+      set(pct, msg) { cap = Math.min(100, pct); if (msg != null && $('ldMsg')) $('ldMsg').textContent = msg; },
+      brand(b) { if (!$('ldName')) return; $('ldName').textContent = b.name || 'School-G'; $('ldLogo').innerHTML = logo(b); },
+      async done() { cap = 100; cur = Math.max(cur, 92); draw(); dead = true; clearInterval(tick); const f = $('ldFill'); if (f) f.style.width = '100%'; await new Promise(r => setTimeout(r, 260)); }
+    };
+    c.set(18, o.msg || 'Chargement…'); return c;
+  };
+
 
   const rd = (k, d) => { try { const v = localStorage.getItem(K + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
   const wr = (k, v) => { try { localStorage.setItem(K + k, JSON.stringify(v)); return true; } catch (e) { UI.toast('Espace de stockage plein : exportez vos données ou retirez des images.', 'err'); return false; } };
