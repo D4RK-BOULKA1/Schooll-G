@@ -5,7 +5,7 @@
   const { esc, money, fdate, ic, today, badge } = UI;
   const root = document.getElementById('root');
   const ST = { q: '', f: '', tab: 'dash' };
-  const DATA = { schools: [], subs: [], logs: [], msgs: [] };
+  const DATA = { schools: [], subs: [], logs: [], msgs: [], refs: [] };
   const $ = id => document.getElementById(id);
   const G = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
 
@@ -44,6 +44,7 @@
   async function load(what) {
     if (!what || what === 'schools') DATA.schools = await SG.schools();
     if (!what || what === 'subs') DATA.subs = await SG.subs().catch(() => []);
+    if (!what || what === 'refs') DATA.refs = await SG.allReferrals().catch(() => []);
     if (what === 'logs') DATA.logs = await SG.logs().catch(() => []);
     if (what === 'msgs') DATA.msgs = await SG.allMessages().catch(() => []);
   }
@@ -97,6 +98,37 @@
   };
   A.refund = id => { const x = DATA.subs.find(q => q.id === id); UI.confirm(`Annuler le paiement de ${money(x.amount)} de <b>${esc(x.schoolName)}</b> ? L'abonnement sera ramené à sa date précédente.`, () => run(async () => { await SG.refundSub(x); await load('subs'); }, 'Paiement annulé.'), { danger: true, yes: 'Annuler le paiement' }); };
 
+  /* ---------- prospects et parrainages ---------- */
+  const DAY = 864e5;
+  function prospects() {
+    const g = SG.global(), out = [];
+    DATA.schools.forEach(s => {
+      const st = SG.status(s); if (st === 'active' || st === 'banned' || st === 'blocked') return;
+      const k = s.stats || {}, age = (Date.now() - new Date(s.createdAt || Date.now())) / DAY, left = SG.daysLeft(s);
+      let why = '', pr = 0;
+      if (st === 'expired') { why = 'Essai terminé, pas abonné'; pr = 3; }
+      else if (left <= 2) { why = 'Essai bientôt terminé (' + Math.max(left, 0) + ' j)'; pr = 2; }
+      else if (!(k.students > 0) && age >= 3) { why = 'Aucun élève ajouté depuis ' + Math.floor(age) + ' jours'; pr = 1; }
+      if (why) out.push({ s, why, pr, st });
+    });
+    return out.sort((a, b) => b.pr - a.pr);
+  }
+  const waMsg = (p) => { const g = SG.global(), s = p.s; return p.st === 'expired'
+    ? `Bonjour ${s.director}, c'est ${'Boulka'} de School-G. Votre essai gratuit pour ${s.name} est terminé. Avez-vous eu le temps de tester ? Je peux vous aider à vous abonner et à garder toutes vos données.`
+    : p.pr === 2 ? `Bonjour ${s.director}, c'est Boulka de School-G. Votre essai gratuit pour ${s.name} se termine bientôt. Souhaitez-vous qu'on fasse le point ensemble pour continuer sans interruption ?`
+    : `Bonjour ${s.director}, c'est Boulka de School-G. J'ai vu que vous avez créé le compte de ${s.name}. Avez-vous besoin d'aide pour ajouter vos élèves et démarrer ? Je suis disponible pour vous guider.`; };
+  A.wa = id => { const s = byId(id); SG.updateSchool(id, { crm: Object.assign({}, s.crm, { last: Date.now(), n: ((s.crm || {}).n || 0) + 1 }) }).then(() => { SG.log('Relance WhatsApp : ' + s.name); }).catch(() => { }); };
+  A.note = id => { const s = byId(id), c = s.crm || {}; UI.formModal({ title: 'Suivi : ' + esc(s.name), size: 'sm', fields: [{ name: 'note', label: 'Note de suivi', type: 'textarea', rows: 3, def: c.note || '' }], submit: 'Enregistrer', onSubmit: v => run(async () => { await SG.updateSchool(id, { crm: Object.assign({}, c, { note: v.note.trim(), last: c.last || Date.now() }) }); }, 'Suivi enregistré.') }); };
+  A.grant = id => { const r = DATA.refs.find(x => x.id === id), p = DATA.schools.find(x => x.code === r.code); if (!p) return UI.toast('École marraine introuvable.', 'err');
+    UI.confirm(`Offrir <b>1 mois</b> à <b>${esc(p.name)}</b> pour avoir parrainé <b>${esc(r.name)}</b> ?`, () => run(async () => { await SG.grantReferral(r.id, p); SG.log('Parrainage : 1 mois offert à ' + p.name); await load('refs'); }, '1 mois offert au parrain.'), { yes: 'Offrir 1 mois' }); };
+  function prospectsBody() {
+    const P = prospects();
+    const sub = s => SG.status(s) === 'active';
+    const R = DATA.refs.map(r => { const filleul = DATA.schools.find(x => x.id === r.id), marraine = DATA.schools.find(x => x.code === r.code); return { r, filleul, marraine }; });
+    return `<div class="card" style="margin-bottom:20px"><div class="ch"><h3>Prospects à relancer (${P.length})</h3></div><div class="tw">${P.length ? `<table class="tbl"><thead><tr><th>École</th><th>Raison</th><th>Dernier suivi</th><th></th></tr></thead><tbody>${P.map(p => { const c = p.s.crm || {}; return `<tr><td><b>${esc(p.s.name)}</b><br><small class="muted">${esc(p.s.director)} · ${esc(p.s.phone)}</small></td><td>${badge(esc(p.why), p.pr === 3 ? 'bad' : p.pr === 2 ? 'warn' : 'info')}</td><td>${c.last ? fdate(new Date(c.last).toISOString()) + ' · ' + (c.n || 1) + ' relance(s)' : '<span class="muted">Jamais contactée</span>'}${c.note ? '<br><small class="muted">' + esc(c.note) + '</small>' : ''}</td><td><div class="acts"><a class="btn btn-primary btn-sm" target="_blank" rel="noopener" data-a="wa" data-id="${p.s.id}" href="${SG.waLink(p.s.phone, waMsg(p))}">Relancer sur WhatsApp</a><button class="btn btn-ghost btn-sm" data-a="note" data-id="${p.s.id}">Note</button></div></td></tr>`; }).join('')}</tbody></table>` : '<div class="empty"><h4>Aucun prospect à relancer</h4><p>Les écoles inactives ou en fin d\'essai apparaîtront ici.</p></div>'}</div></div>
+    <div class="card"><div class="ch"><h3>Parrainages (${R.length})</h3></div><div class="tw">${R.length ? `<table class="tbl"><thead><tr><th>Filleule</th><th>Marraine</th><th>Statut du filleul</th><th></th></tr></thead><tbody>${R.map(({ r, filleul, marraine }) => `<tr><td><b>${esc(r.name)}</b><br><small class="muted">${fdate(new Date(r.createdAtMs).toISOString())}</small></td><td>${marraine ? esc(marraine.name) : '<span class="muted">Code ' + esc(r.code) + '</span>'}</td><td>${filleul ? badge(SG.STATUS[SG.status(filleul)][0], SG.STATUS[SG.status(filleul)][1]) : ''}</td><td>${r.rewarded ? badge('1 mois offert', 'ok') : filleul && marraine ? `<button class="btn btn-primary btn-sm" data-a="grant" data-id="${r.id}">Offrir 1 mois au parrain</button>` : ''}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucun parrainage</h4></div>'}</div></div>`;
+  }
+
   A.sendMsg = async () => {
     const f = $('f-msg'), v = UI.read(f); if (!v.title.trim() || !v.body.trim()) return UI.toast('Renseignez le titre et le message.', 'err');
     const sc = v.target === 'all' ? null : byId(v.target);
@@ -144,7 +176,7 @@
   }
   function render() {
     const S = stats(); const g = SG.global();
-    const nav = [['dash', 'Vue d\'ensemble', 'grid'], ['schools', 'Écoles', 'school'], ['pays', 'Paiements', 'wallet'], ['logs', 'Journal', 'list'], ['settings', 'Réglages', 'set']];
+    const nav = [['dash', 'Vue d\'ensemble', 'grid'], ['schools', 'Écoles', 'school'], ['prospects', 'Prospects' + (prospects().length ? ' (' + prospects().length + ')' : ''), 'users'], ['pays', 'Paiements', 'wallet'], ['logs', 'Journal', 'list'], ['settings', 'Réglages', 'set']];
     let body = '';
     if (ST.tab === 'dash') body = `<div class="kpis"><div class="kpi"><small>Écoles inscrites</small><b>${S.sch.length}</b><span>${S.students} élève(s) au total</span></div><div class="kpi g"><small>Abonnées actives</small><b>${S.by.active}</b><span>Conversion : ${S.conv} %</span></div><div class="kpi o"><small>En essai gratuit</small><b>${S.by.trial}</b><span>${S.by.expired} essai(s) expiré(s)</span></div><div class="kpi r"><small>Bloquées ou bannies</small><b>${S.by.blocked + S.by.banned}</b></div></div>
       <div class="kpis"><div class="kpi g"><small>Revenus du mois</small><b>${money(S.month)}</b></div><div class="kpi"><small>Revenus totaux</small><b>${money(S.total)}</b></div><div class="kpi o"><small>Paiements validés</small><b>${S.subs.length}</b></div><div class="kpi"><small>Prix moyen</small><b>${money(S.subs.length ? S.total / S.subs.length : 0)}</b></div></div>
@@ -152,6 +184,7 @@
       <div class="card"><div class="ch"><h3>Répartition</h3></div><div class="cb">${[['Abonnées', S.by.active, 'ok'], ['En essai', S.by.trial, 'info'], ['Expirées', S.by.expired, 'warn'], ['Bloquées', S.by.blocked, 'bad'], ['Bannies', S.by.banned, 'bad']].map(([l, n, k]) => `<div class="row"><span>${l}</span>${badge(n, k)}</div>`).join('')}</div></div></div>
       <div class="card"><div class="ch"><h3>Dernières inscriptions</h3><button class="btn btn-ghost btn-sm" data-a="tab" data-id="schools">Tout voir</button></div><div class="tw">${S.sch.length ? `<table class="tbl"><tbody>${S.sch.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 6).map(s => `<tr><td><b>${esc(s.name)}</b><br><small class="muted">${esc(s.email)}</small></td><td>${badge(SG.STATUS[SG.status(s)][0], SG.STATUS[SG.status(s)][1])}</td><td>${fdate(s.createdAt)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucune école pour l\'instant</h4><p>Les inscriptions à l\'essai gratuit apparaîtront ici.</p></div>'}</div></div>`;
     else if (ST.tab === 'schools') body = `<div class="tools"><div class="sr">${ic('search', 16)}<input type="search" id="q" placeholder="Rechercher une école, email, téléphone, code" value="${esc(ST.q)}"></div><select id="f"><option value="">Tous les statuts</option>${Object.entries(SG.STATUS).map(([k, v]) => `<option value="${k}" ${ST.f === k ? 'selected' : ''}>${v[0]}</option>`).join('')}</select><button class="btn btn-ghost" data-a="csv">${ic('dl', 16)}Exporter CSV</button><button class="btn btn-ghost" data-a="refresh">${ic('refresh', 16)}Actualiser</button></div><div class="card flat"><div class="tw" id="list"></div></div>`;
+    else if (ST.tab === 'prospects') body = prospectsBody();
     else if (ST.tab === 'pays') { const all = DATA.subs; body = `<div class="card flat"><div class="tw">${all.length ? `<table class="tbl"><thead><tr><th>Date</th><th>École</th><th>Formule</th><th>Mode</th><th class="r">Montant</th><th>État</th><th></th></tr></thead><tbody>${all.map(x => `<tr><td>${fdate(x.date)}</td><td><b>${esc(x.schoolName)}</b></td><td>${esc(x.plan)} · ${x.months} mois</td><td>${esc(x.method)}${x.ref ? '<br><small class="muted">' + esc(x.ref) + '</small>' : ''}</td><td class="r"><b>${money(x.amount)}</b></td><td>${badge(x.status, x.status === 'validé' ? 'ok' : 'bad')}</td><td class="r">${x.status === 'validé' ? `<button class="btn btn-danger btn-sm" data-a="refund" data-id="${x.id}">Annuler</button>` : ''}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucun paiement</h4><p>Enregistrez un paiement depuis la liste des écoles.</p></div>'}</div></div>`; }
     else if (ST.tab === 'logs') body = `<div class="card"><div class="cb" style="padding-top:6px;padding-bottom:6px">${DATA.logs.map(x => `<div class="row"><span>${esc(x.m)}</span><small class="muted nowrap">${new Date(x.tMs).toLocaleString('fr-FR')}</small></div>`).join('') || '<div class="empty"><h4>Journal vide</h4></div>'}</div></div>`;
     else body = `<div class="g2"><div class="card"><div class="ch"><h3>Tarifs et essai</h3><button class="btn btn-primary btn-sm" data-a="plans">Modifier</button></div><div class="cb"><div class="row"><span>Durée de l'essai</span><b>${g.trialDays} jours</b></div>${g.plans.map(p => `<div class="row"><span>${esc(p.name)}</span><b>${money(p.price)} / ${p.months} mois</b></div>`).join('')}<div class="row"><span>WhatsApp</span><b>${esc(g.contactWa)}</b></div></div></div>
@@ -160,7 +193,7 @@
       <div class="card" style="grid-column:1/-1"><div class="ch"><h3>Message aux écoles</h3></div><div class="cb"><form class="frm" id="f-msg" novalidate><div class="fld"><label>Destinataire</label><select name="target"><option value="all">Toutes les écoles (${DATA.schools.length})</option>${DATA.schools.slice().sort((a, b) => a.name.localeCompare(b.name)).map(s => `<option value="${esc(s.id)}">${esc(s.name)} · ${esc(s.city || s.email)}</option>`).join('')}</select></div><div class="fld"><label>Titre</label><input type="text" name="title" maxlength="120" placeholder="Ex : Nouvelle fonctionnalité disponible"></div><div class="fld"><label>Message</label><textarea name="body" rows="4" maxlength="2000" placeholder="Votre message : les directeurs le verront dans leur espace, avec une pastille sur la cloche."></textarea></div><div class="fld"><button class="btn btn-primary" data-a="sendMsg" type="button">Envoyer le message</button></div></form>
       <h4 style="margin:20px 0 6px;font-size:16px">Messages envoyés</h4>${DATA.msgs.length ? DATA.msgs.map(m => `<div class="row" style="align-items:flex-start"><span><b>${esc(m.title)}</b> <small class="muted">· ${m.target === 'all' ? 'Toutes les écoles' : esc(m.targetName || m.target)} · ${new Date(m.createdMs).toLocaleString('fr-FR')}</small><br><small>${esc(m.body)}</small></span><button class="btn btn-ghost btn-sm" data-a="delMsg" data-id="${esc(m.id)}">Supprimer</button></div>`).join('') : '<p class="muted small">Aucun message envoyé.</p>'}</div></div></div>`;
     root.innerHTML = `<div class="shell"><aside class="side" id="side"><div class="side-brand"><div class="lg">G</div><div><b>School-G</b><small>Administration</small></div></div><nav>${nav.map(([k, l, i]) => `<a class="it ${ST.tab === k ? 'on' : ''}" href="#" data-a="tab" data-id="${k}">${ic(i, 18)}<span>${l}</span></a>`).join('')}</nav><div class="side-foot"><a href="#" data-a="logout">${ic('out', 16)}Se déconnecter</a><a href="index.html">${ic('arrow', 16)}Retour au site</a></div></aside><div class="scrim" id="scrim"></div>
-      <div class="main"><header class="top"><button class="mb" id="mb" aria-label="Menu">${ic('menu', 24)}</button><div class="tt">${nav.find(n => n[0] === ST.tab)[1]}</div><div class="sp"></div><div class="dt">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</div><div class="av">A</div></header><main id="view">${body}</main></div></div>`;
+      <div class="main"><header class="top"><button class="mb" id="mb" aria-label="Menu">${ic('menu', 24)}</button><div class="tt">${nav.find(n => n[0] === ST.tab)[1].replace(/ \(\d+\)$/, '')}</div><div class="sp"></div><div class="dt">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</div><div class="av">A</div></header><main id="view">${body}</main></div></div>`;
     const side = $('side'), scrim = $('scrim'); const tog = on => { side.classList.toggle('open', on); scrim.classList.toggle('on', on); };
     $('mb').onclick = () => tog(true); scrim.onclick = () => tog(false); side.addEventListener('click', e => { if (e.target.closest('a.it')) tog(false); });
     drawList();
@@ -179,7 +212,16 @@
     if (!SG.isAdmin()) { await SG.logout(); return loginView('Ce compte n\'est pas administrateur.'); }
     if (!SG.adminCodeOk()) return codeView();
     try { await load(); } catch (e) { return loginView('Lecture impossible : ' + SG.errMsg(e) + ' Vérifiez les règles Firestore et l\'email administrateur.'); }
-    render();
+    render(); liveStart();
+  }
+  /* Liste des écoles en direct : une nouvelle inscription ou un changement apparaît sans actualiser. */
+  let liveOff = null, liveT = null;
+  function liveStart() {
+    if (liveOff) liveOff();
+    liveOff = SG.watchSchools(l => {
+      DATA.schools = l; clearTimeout(liveT);
+      liveT = setTimeout(() => { if (!$('view') || document.querySelector('.ov') || /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) return; render(); }, 250);
+    });
   }
   boot();
 })();

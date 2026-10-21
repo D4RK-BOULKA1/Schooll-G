@@ -35,6 +35,8 @@
   SG._global = { trialDays: C.trialDays, plans: C.plans, announcement: '', contactWa: C.contact.whatsapp, contactMail: C.contact.email };
   SG.global = () => SG._global;
   SG.loadGlobal = async () => { if (!db) return SG._global; try { const d = await db.collection('global').doc('config').get(); if (d.exists) Object.assign(SG._global, d.data()); } catch (e) { } return SG._global; };
+  /* Écoute en direct : la fiche de l'école (statut, abonnement) et la configuration globale (annonce, tarifs). */
+  SG.watchGlobal = cb => db.collection('global').doc('config').onSnapshot(d => { if (d.exists) { Object.assign(SG._global, d.data()); } cb && cb(SG._global); }, () => { });
   SG.setGlobal = async o => { await db.collection('global').doc('config').set(o, { merge: true }); Object.assign(SG._global, o); };
 
   /* ---------- authentification ---------- */
@@ -64,13 +66,15 @@
   };
 
   /* ---------- écoles ---------- */
-  const fromDoc = (id, d) => ({ id, code: d.code, name: d.name, director: d.director, email: d.ownerEmail || '', phone: d.phone || '', city: d.city || '', createdAt: iso(d.createdAtMs), trialEnd: iso(d.trialEndMs), paidUntil: iso(d.paidUntilMs), plan: d.plan || '', blocked: !!d.blocked, banned: !!d.banned, trialCancelled: !!d.trialCancelled, notes: d.notes || '', stats: d.stats || {}, ownerUid: d.ownerUid });
+  const fromDoc = (id, d) => ({ id, code: d.code, name: d.name, director: d.director, email: d.ownerEmail || '', phone: d.phone || '', city: d.city || '', createdAt: iso(d.createdAtMs), trialEnd: iso(d.trialEndMs), paidUntil: iso(d.paidUntilMs), plan: d.plan || '', blocked: !!d.blocked, banned: !!d.banned, trialCancelled: !!d.trialCancelled, notes: d.notes || '', stats: d.stats || {}, ownerUid: d.ownerUid, referredBy: d.referredBy || '', refRewarded: !!d.refRewarded, crm: d.crm || {}, updatedAt: iso(d.updatedAtMs) });
   const toPatch = p => {
-    const o = {}; const map = { name: 'name', director: 'director', phone: 'phone', city: 'city', plan: 'plan', notes: 'notes', blocked: 'blocked', banned: 'banned', trialCancelled: 'trialCancelled', email: 'ownerEmail', stats: 'stats' };
+    const o = {}; const map = { name: 'name', director: 'director', phone: 'phone', city: 'city', plan: 'plan', notes: 'notes', crm: 'crm', refRewarded: 'refRewarded', blocked: 'blocked', banned: 'banned', trialCancelled: 'trialCancelled', email: 'ownerEmail', stats: 'stats' };
     Object.keys(p).forEach(k => { if (map[k]) o[map[k]] = p[k]; });
     if ('trialEnd' in p) o.trialEndMs = ms(p.trialEnd); if ('paidUntil' in p) o.paidUntilMs = ms(p.paidUntil);
     return o;
   };
+  SG.watchSchool = (id, cb) => db.collection('schools').doc(id).onSnapshot(d => { if (d.exists) cb(fromDoc(d.id, d.data())); }, () => { });
+  SG.watchSchools = cb => db.collection('schools').onSnapshot(snap => { const l = []; snap.forEach(d => { const x = fromDoc(d.id, d.data()); SG._byId[x.id] = x; l.push(x); }); cb(l); }, () => { });
   SG.school = async id => { const d = await db.collection('schools').doc(id).get(); return d.exists ? fromDoc(d.id, d.data()) : null; };
   SG.mySchool = () => SG.school(SG.user.uid);
   const CODE = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -80,11 +84,15 @@
   SG.createSchool = async f => {
     const u = SG.user; if (!u) throw new Error('Non connecté.');
     const g = SG.global(), now = Date.now(), trialEndMs = now + g.trialDays * 864e5;
+    let ref = String(f.ref || '').trim().toUpperCase();
+    if (ref) { const r = await db.collection('pub').doc(ref).get().catch(() => null); if (!r || !r.exists || r.data().ownerUid === u.uid) ref = ''; }
     for (let i = 0; i < 8; i++) {
       const code = genCode();
       const sd = { ownerUid: u.uid, ownerEmail: u.email || '', name: f.name.trim(), director: f.director.trim(), phone: f.phone.trim(), city: (f.city || '').trim(), code, createdAtMs: now, plan: 'Essai gratuit', trialEndMs, paidUntilMs: null, trialCancelled: false, blocked: false, banned: false, notes: '', stats: { students: 0, classes: 0, teachers: 0, revenue: 0 }, updatedAtMs: now };
+      if (ref) { sd.referredBy = ref; sd.refRewarded = false; }
       const b = db.batch();
       b.set(db.collection('schools').doc(u.uid), sd);
+      if (ref) b.set(db.collection('refs').doc(u.uid), { code: ref, ownerUid: u.uid, name: sd.name, createdAtMs: now, rewarded: false });
       b.set(db.collection('pub').doc(code), { ownerUid: u.uid, schoolId: u.uid, name: sd.name, access: { trialEndMs, paidUntilMs: null, trialCancelled: false, blocked: false, banned: false }, settingsJson: '{}', noticesJson: '[]', themeJson: 'null', updatedAtMs: now });
       try { await b.commit(); return fromDoc(u.uid, sd); }
       catch (e) { if (e.code !== 'permission-denied') throw e; const ex = await SG.mySchool().catch(() => null); if (ex) return ex; if (i === 7) throw e; }
@@ -223,6 +231,19 @@
     if (Object.keys(acc).length && s.code) await db.collection('pub').doc(s.code).update(acc);
     if (sp.name && s.code) await db.collection('pub').doc(s.code).update({ name: sp.name }).catch(() => { });
     Object.assign(s, patch); SG._byId[id] = s; return s;
+  };
+  /* Parrainage : le code de parrainage est le code de l'école. */
+  SG.myReferrals = async code => { const snap = await db.collection('refs').where('code', '==', code).get(); const l = []; snap.forEach(d => l.push(Object.assign({ id: d.id }, d.data()))); return l.sort((a, b) => b.createdAtMs - a.createdAtMs); };
+  SG.allReferrals = async () => { const snap = await db.collection('refs').get(); const l = []; snap.forEach(d => l.push(Object.assign({ id: d.id }, d.data()))); return l; };
+  /* Offre 1 mois au parrain (admin) et marque le filleul comme récompensé. */
+  SG.grantReferral = async (refId, parentSchool) => {
+    const day = 30 * 864e5, now = Date.now(), p = parentSchool, st = SG.status(p), patch = {};
+    if (st === 'active') patch.paidUntil = new Date(ms(p.paidUntil) + day).toISOString();
+    else if (st === 'trial') patch.trialEnd = new Date(ms(p.trialEnd) + day).toISOString();
+    else { patch.paidUntil = new Date(now + day).toISOString(); patch.plan = 'Parrainage'; patch.trialCancelled = false; }
+    await SG.updateSchool(p.id, patch);
+    await db.collection('refs').doc(refId).update({ rewarded: true, rewardedMs: now });
+    await SG.updateSchool(refId, { refRewarded: true });
   };
   SG.subs = async () => { const snap = await db.collection('subs').orderBy('dateMs', 'desc').limit(300).get(); const l = []; snap.forEach(d => l.push(Object.assign({ id: d.id }, d.data()))); return l; };
   SG.recordSub = async (schoolId, o) => {

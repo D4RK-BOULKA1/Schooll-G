@@ -128,7 +128,7 @@
     if (A.sess && A.sess.byAdmin) return;
     const sv = saved(); if (sv != null && !D.tourDone) { setTimeout(() => { if (!modalOpen()) A.tourStart(sv); }, 600); return; }
     if (D.tourDone || (D.students && D.students.length) || (D.classes && D.classes.length)) return;
-    setTimeout(() => { if (!modalOpen()) A.tourStart(); }, 900);
+    setTimeout(() => { if (!modalOpen() && !D.tourDone && !(D.students && D.students.length) && !(D.classes && D.classes.length)) A.tourStart(); }, 900);
   };
   document.addEventListener('click', e => { if (e.target.closest('[data-tour]')) { e.preventDefault(); drop(); A.tourStart(); } });
 })();

@@ -122,19 +122,27 @@
     if (S.accent) document.documentElement.style.setProperty('--orange', S.accent);
     try { const lg = S.logo || ''; localStorage.setItem('sg_brand', JSON.stringify({ id: school0.id, name: S.name || school0.name, logo: lg.length < 150000 ? lg : '' })); } catch (e) { }
   };
+  /* Bandeaux (annonce, essai, abonnement) et badge d'état : redessinés en direct quand l'admin change quelque chose. */
+  A.drawBanners = () => {
+    const sc = school0, st = SG.status(sc), bn = [];
+    const bd = document.getElementById('stBadge'); if (bd) bd.innerHTML = { trial: badge('Essai · ' + SG.daysLeft(sc) + ' j restants', 'or'), active: badge('Abonné · ' + SG.daysLeft(sc) + ' j', 'ok') }[st] || '';
+    if (sess.byAdmin) bn.push(`<div class="banner adm">${ic('shield', 18)}Mode administrateur : vous consultez cette école. <a href="#" id="exitAdm" style="font-weight:700;text-decoration:underline">Quitter</a></div>`);
+    const g = SG.global(); if (g.announcement) bn.push(`<div class="banner info">${ic('bell', 18)}<span>${esc(g.announcement)}</span></div>`);
+    if (st === 'trial') bn.push(`<div class="banner trial"><span>Essai gratuit : <b>${SG.daysLeft(sc)} jour(s)</b> restant(s).</span><button class="btn btn-primary btn-sm" data-sub="new">M'abonner</button></div>`);
+    else if (st === 'active' && SG.daysLeft(sc) <= 7) bn.push(`<div class="banner trial"><span>Votre abonnement se termine dans <b>${SG.daysLeft(sc)} jour(s)</b>.</span><button class="btn btn-primary btn-sm" data-sub="renew">Renouveler</button></div>`);
+    const el = document.getElementById('banners'); if (el) el.innerHTML = bn.join('');
+    const ex = document.getElementById('exitAdm'); if (ex) ex.onclick = async e => { e.preventDefault(); await SG.flushAll(); window.close(); location.href = 'admin.html'; };
+  };
+
   function shell() {
     const sc = A.school(), S = D.settings, st = SG.status(sc);
     document.documentElement.style.setProperty('--orange', S.accent || '#E4572E');
     document.title = (S.name || 'School-G') + ', espace direction';
     const nav = NAV.map(([g, items]) => `<h6>${g}</h6>` + items.map(([k, l, i]) => k === 'tuto' ? `<a class="it" href="#" data-tour data-k="tuto">${ic(i, 18)}<span>${l}</span></a>` : `<a class="it" href="#/${k}" data-k="${k}">${ic(i, 18)}<span>${l}</span></a>`).join('')).join('');
     const stb = { trial: badge('Essai · ' + SG.daysLeft(sc) + ' j restants', 'or'), active: badge('Abonné · ' + SG.daysLeft(sc) + ' j', 'ok') }[st] || '';
-    document.getElementById('root').innerHTML = `<div class="shell"><aside class="side" id="side"><div class="side-brand"><div class="lg">${S.logo ? `<img src="${S.logo}" alt="">` : 'G'}</div><div style="min-width:0"><b>${esc(S.name || 'Mon école')}</b><small>${esc(S.year)}</small></div></div><nav>${nav}</nav><div class="side-foot">${stb}<div>${esc(sc.director)}</div><div class="foot-btns">${SG.isAdmin() ? '<a class="btn btn-primary btn-sm" href="admin.html" id="admBtn">' + ic('shield', 16) + 'Panel admin</a>' : ''}<button class="btn btn-ghost btn-sm" type="button" data-parent>${ic('users', 16)}Espace parent</button></div><a href="#" id="logout">${ic('out', 16)}Se déconnecter</a></div></aside><div class="scrim" id="scrim"></div>
+    document.getElementById('root').innerHTML = `<div class="shell"><aside class="side" id="side"><div class="side-brand"><div class="lg">${S.logo ? `<img src="${S.logo}" alt="">` : 'G'}</div><div style="min-width:0"><b>${esc(S.name || 'Mon école')}</b><small>${esc(S.year)}</small></div></div><nav>${nav}</nav><div class="side-foot"><span id="stBadge">${stb}</span><div>${esc(sc.director)}</div><div class="foot-btns">${SG.isAdmin() ? '<a class="btn btn-primary btn-sm" href="admin.html" id="admBtn">' + ic('shield', 16) + 'Panel admin</a>' : ''}<button class="btn btn-ghost btn-sm" type="button" data-parent>${ic('users', 16)}Espace parent</button></div><a href="#" id="logout">${ic('out', 16)}Se déconnecter</a></div></aside><div class="scrim" id="scrim"></div>
       <div class="main"><header class="top"><button class="mb" id="mb" aria-label="Menu">${ic('menu', 24)}</button><div class="tt" id="ttl"></div><div class="sp"></div><button class="btn btn-ghost btn-sm topparent" type="button" data-parent>${ic('users', 16)}<span>Espace parent</span></button><div class="sync" id="sync"></div><button class="bellb" type="button" data-tour aria-label="Mode d'emploi" title="Mode d'emploi" style="font-weight:700;margin-right:6px">?</button><button class="bellb" id="bell" type="button" aria-label="Messages de School-G" title="Messages de School-G" style="display:none">${ic('bell', 18)}<span class="n" id="bellN" style="display:none"></span></button><div class="dt">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div><div class="av">${esc((sc.director || 'D')[0].toUpperCase())}</div></header><div id="banners"></div><main id="view"></main></div></div>`;
-    const bn = [];
-    if (sess.byAdmin) bn.push(`<div class="banner adm">${ic('shield', 18)}Mode administrateur : vous consultez cette école. <a href="#" id="exitAdm" style="font-weight:700;text-decoration:underline">Quitter</a></div>`);
-    const g = SG.global(); if (g.announcement) bn.push(`<div class="banner info">${ic('bell', 18)}<span>${esc(g.announcement)}</span></div>`);
-    if (st === 'trial') bn.push(`<div class="banner trial"><span>Essai gratuit : <b>${SG.daysLeft(sc)} jour(s)</b> restant(s).</span><button class="btn btn-primary btn-sm" data-sub="new">M'abonner</button></div>`);
-    else if (st === 'active' && SG.daysLeft(sc) <= 7) bn.push(`<div class="banner trial"><span>Votre abonnement se termine dans <b>${SG.daysLeft(sc)} jour(s)</b>.</span><button class="btn btn-primary btn-sm" data-sub="renew">Renouveler</button></div>`);
+    A.drawBanners();
     if (!sess.byAdmin) {
       const key = 'sg_seen_' + sc.id; const seen = () => { try { return +localStorage.getItem(key) || 0; } catch (e) { return 0; } };
       let first = true, list = [];
@@ -145,9 +153,9 @@
         try { localStorage.setItem(key, String(Math.max(0, ...list.map(m => m.createdMs)))); } catch (e) { } draw();
       };
       document.getElementById('bell').onclick = open;
-      SG.watchMessages(sc.id, l => { list = l; draw(); if (l.some(m => m.createdMs > seen()) && !document.querySelector('.ov')) { if (first) setTimeout(open, 600); else UI.toast('Nouveau message de School-G', 'ok'); } first = false; });
+      if (A._msgUnsub) { try { A._msgUnsub(); } catch (e) { } }
+      A._msgUnsub = SG.watchMessages(sc.id, l => { list = l; draw(); if (l.some(m => m.createdMs > seen()) && !document.querySelector('.ov')) { if (first) setTimeout(open, 600); else UI.toast('Nouveau message de School-G', 'ok'); } first = false; });
     }
-    document.getElementById('banners').innerHTML = bn.join('');
     const side = document.getElementById('side'), scrim = document.getElementById('scrim');
     const tog = on => { side.classList.toggle('open', on); scrim.classList.toggle('on', on); };
     document.getElementById('mb').onclick = () => tog(true); scrim.onclick = () => tog(false); side.addEventListener('click', e => { if (e.target.closest('a.it')) tog(false); });
@@ -213,6 +221,30 @@
   };
   A.acts.seed = () => UI.confirm('Charger des élèves, professeurs, paiements et notes fictifs pour explorer School-G ?', () => { A.seedDemo(); location.hash = '#/dashboard'; A.rerender(); UI.toast('Données d\'exemple chargées.', 'ok'); }, { yes: 'Charger' });
 
+  /* Temps réel : dès que l'administrateur bloque, bannit, active un abonnement ou annule un essai,
+     le site de l'école réagit tout de suite, sans rechargement de la page. */
+  let liveOff = null, locked = false, hashBound = false;
+  const keyOf = x => JSON.stringify([x.paidUntil, x.trialEnd, x.banned, x.blocked, x.trialCancelled, x.plan]);
+  function goLock(st) {
+    locked = true; document.querySelectorAll('.ov,.tr').forEach(n => n.remove()); document.body.classList.remove('noscroll');
+    SG.stopWatch(); lockScreen(school0, st);
+  }
+  function liveStart() {
+    if (liveOff) liveOff();
+    let prevSt = SG.status(school0), prevKey = keyOf(school0);
+    const u1 = SG.watchSchool(school0.id, x => {
+      Object.assign(school0, x); const st = SG.status(school0), key = keyOf(school0);
+      if (st === prevSt && key === prevKey) return; const was = prevSt; prevSt = st; prevKey = key;
+      if (sess.byAdmin) return A.drawBanners();
+      if (st !== 'trial' && st !== 'active') return goLock(st);
+      if (locked) { locked = false; return A.boot(); }
+      A.drawBanners(); if (st === 'active' && was !== 'active') UI.toast('Votre abonnement est activé. Merci !', 'ok');
+    });
+    const u2 = SG.watchGlobal(() => { if (!locked) A.drawBanners(); });
+    const tm = setInterval(() => { if (locked || sess.byAdmin) return; const st = SG.status(school0); if (st !== 'trial' && st !== 'active') goLock(st); else A.drawBanners(); }, 30000);
+    liveOff = () => { try { u1 && u1(); u2 && u2(); } catch (e) { } clearInterval(tm); };
+  }
+
   A.boot = async () => {
     const root = document.getElementById('root');
     let cache = null; try { cache = JSON.parse(localStorage.getItem('sg_brand') || 'null'); } catch (e) { }
@@ -227,14 +259,14 @@
       if (!school0) return location.replace('login.html#finish');
       if (!cache || cache.id !== school0.id) ld.brand({ name: school0.name });
       const st0 = SG.status(school0);
-      if (st0 !== 'trial' && st0 !== 'active' && !sess.byAdmin) return lockScreen(school0, st0);
+      if (st0 !== 'trial' && st0 !== 'active' && !sess.byAdmin) { locked = true; liveStart(); return lockScreen(school0, st0); }
       SG.setCurrent(school0);
       const data = await SG.loadData(school0.id, { school: school0 });
       Object.keys(D).forEach(k => delete D[k]); Object.assign(D, data); ld.set(90, 'Préparation de votre espace…');
       try { const lg = (D.settings && D.settings.logo) || ''; localStorage.setItem('sg_brand', JSON.stringify({ id: school0.id, name: (D.settings && D.settings.name) || school0.name, logo: lg.length < 150000 ? lg : '' })); } catch (e) { }
       ld.brand({ name: (D.settings && D.settings.name) || school0.name, logo: D.settings && D.settings.logo }); await ld.done();
       SG.watchData(school0.id, D, () => { if (!document.querySelector('.ov') && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) route(); else UI.toast('Mise à jour reçue d\'un autre appareil.'); });
-      shell(); window.addEventListener('hashchange', route); route(); if (A.tourMaybe) A.tourMaybe();
+      shell(); if (!hashBound) { window.addEventListener('hashchange', route); hashBound = true; } route(); liveStart(); if (A.tourMaybe) A.tourMaybe();
     } catch (e) {
       console.error(e);
       root.innerHTML = `<div class="lock"><div class="box"><h1>Connexion impossible</h1><p>${esc(SG.errMsg(e))}</p><button class="btn btn-navy" onclick="location.reload()">Réessayer</button></div></div>`;

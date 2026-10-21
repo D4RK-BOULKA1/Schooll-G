@@ -107,6 +107,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Parrainage : un filleul déclare son parrain à l'inscription ; le parrain lit ses filleuls ; l'admin accorde la récompense
+    match /refs/{id} {
+      allow read: if isAdmin()
+        || (signedIn() && exists(/databases/$(database)/documents/schools/$(request.auth.uid))
+            && resource.data.code == get(/databases/$(database)/documents/schools/$(request.auth.uid)).data.code);
+      allow create: if signedIn() && id == request.auth.uid && request.resource.data.ownerUid == request.auth.uid && request.resource.data.rewarded == false;
+      allow update, delete: if isAdmin();
+    }
+
     // Abonnements payés et journal : administrateur uniquement
     match /subs/{id} { allow read, write: if isAdmin(); }
     match /logs/{id} { allow read, write: if isAdmin(); }

@@ -76,6 +76,10 @@
     try { await SG.parentLogin(v.code, v.mat, v.pin); location.href = 'parent.html'; } catch (x) { err('parent', x.message); busy(f, false); }
   });
 
+  /* Lien de parrainage : ?ref=CODE pré-remplit le champ et ouvre l'inscription. */
+  (function () { const m = /[?&]ref=([A-Za-z0-9]+)/.exec(location.search); if (!m) return; try { sessionStorage.setItem('sg_ref', m[1].toUpperCase()); } catch (e) { } if (!location.hash) location.hash = '#signup'; })();
+  (function () { let r = ''; try { r = sessionStorage.getItem('sg_ref') || ''; } catch (e) { } if (r) document.querySelectorAll('input[name=ref]').forEach(i => { i.value = r; }); })();
+
   /* Démarrage : si déjà connecté (ou retour d'une redirection Google), on continue directement. */
   show(location.hash.slice(1) || 'login');
   SG.ready().then(async u => {
