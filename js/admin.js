@@ -5,6 +5,7 @@
   const { esc, money, fdate, ic, today, badge } = UI;
   const root = document.getElementById('root');
   const ST = { q: '', f: '', tab: 'dash' };
+  const RO_TABS = new Set(['site', 'admins', 'settings']);
   const RO_OK = new Set(['tab', 'logout', 'csv', 'refresh', 'view', 'detail']);
   const DATA = { schools: [], subs: [], logs: [], msgs: [], refs: [], admins: [] };
   const $ = id => document.getElementById(id);
@@ -204,7 +205,7 @@
 
   document.addEventListener('click', async e => {
     const el = e.target.closest('[data-a]'); if (!el) return; const a = el.dataset.a;
-    if (!SG.isAdmin() && !RO_OK.has(a)) { e.preventDefault(); return UI.toast('Lecture seule : action réservée à l\'administrateur principal.', 'err'); }
+    if (!SG.isAdmin() && (!RO_OK.has(a) || (a === 'tab' && RO_TABS.has(el.dataset.id)))) { e.preventDefault(); return UI.toast('Accès interdit par l\'administrateur.', 'err'); }
     if (a === 'tab') { e.preventDefault(); if (ST.tab === 'site' && el.dataset.id !== 'site') SG.siteCodeClear(); if (el.dataset.id === 'site' && !SG.siteCodeOk()) return askSiteCode(); ST.tab = el.dataset.id; if (ST.tab === 'logs') await load('logs'); if (ST.tab === 'settings') await load('msgs'); if (ST.tab === 'admins') { DATA.admins = await SG.listAdmins().catch(() => []); } if (ST.tab === 'site') { render(); await loadSiteTab(); } render(); return; }
     if (a === 'logout') { e.preventDefault(); await SG.logout(); loginView(); return; }
     if (a === 'csv') return exportCsv();
@@ -239,7 +240,6 @@
   /* Lecture seule : on retire tous les boutons d'action (hors consultation). */
   function stripRO() {
     if (SG.isAdmin()) return;
-    document.querySelectorAll('.main [data-a]').forEach(el => { if (!RO_OK.has(el.dataset.a)) el.remove(); });
     const b = document.querySelector('.main .top .sp'); if (b && !document.getElementById('roTag')) b.insertAdjacentHTML('afterend', '<span id="roTag" style="margin-right:12px">' + badge('Lecture seule', 'info') + '</span>');
   }
   function drawList() {
@@ -249,7 +249,7 @@
   }
   function render() {
     const S = stats(); const g = SG.global();
-    const nav = [['dash', 'Vue d\'ensemble', 'grid'], ['schools', 'Écoles', 'school'], ['prospects', 'Prospects' + (prospects().length ? ' (' + prospects().length + ')' : ''), 'users'], ['pays', 'Paiements', 'wallet'], ['logs', 'Journal', 'list'], ['site', 'Modifier le site en live', 'edit'], ['admins', 'Administrateurs', 'shield'], ['settings', 'Réglages', 'set']].filter(n => SG.isAdmin() || ['dash', 'schools', 'prospects', 'pays', 'logs'].includes(n[0]));
+    const nav = [['dash', 'Vue d\'ensemble', 'grid'], ['schools', 'Écoles', 'school'], ['prospects', 'Prospects' + (prospects().length ? ' (' + prospects().length + ')' : ''), 'users'], ['pays', 'Paiements', 'wallet'], ['logs', 'Journal', 'list'], ['site', 'Modifier le site en live', 'edit'], ['admins', 'Administrateurs', 'shield'], ['settings', 'Réglages', 'set']];
     let body = '';
     if (!nav.some(n => n[0] === ST.tab)) ST.tab = 'dash';
     if (ST.tab === 'dash') body = `<div class="kpis"><div class="kpi"><small>Écoles inscrites</small><b>${S.sch.length}</b><span>${S.students} élève(s) au total</span></div><div class="kpi g"><small>Abonnées actives</small><b>${S.by.active}</b><span>Conversion : ${S.conv} %</span></div><div class="kpi o"><small>En essai gratuit</small><b>${S.by.trial}</b><span>${S.by.expired} essai(s) expiré(s)</span></div><div class="kpi r"><small>Bloquées ou bannies</small><b>${S.by.blocked + S.by.banned}</b></div></div>

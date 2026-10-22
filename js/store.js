@@ -147,7 +147,7 @@
 
   const syncCbs = []; SG.onSync = cb => syncCbs.push(cb); const setSync = (v, e) => syncCbs.forEach(cb => cb(v, e));
 
-  const roWarn = () => { if (!SG._roWarned) { SG._roWarned = true; try { UI.toast('Lecture seule : vos modifications ne sont pas enregistrées.', 'err'); } catch (e) { } } };
+  const roWarn = () => { if (!SG._roWarned) { SG._roWarned = true; try { UI.toast('Accès interdit par l\'administrateur : modification non enregistrée.', 'err'); } catch (e) { } } };
   SG.saveData = (id, D) => { if (SG._ro) return roWarn(); const s = S(id); s.D = D; clearTimeout(s.timer); setSync('pending'); s.timer = setTimeout(() => SG.flush(id), 900); };
   SG.flush = id => {
     if (SG._ro) return Promise.resolve();
