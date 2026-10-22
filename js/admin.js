@@ -5,7 +5,8 @@
   const { esc, money, fdate, ic, today, badge } = UI;
   const root = document.getElementById('root');
   const ST = { q: '', f: '', tab: 'dash' };
-  const DATA = { schools: [], subs: [], logs: [], msgs: [], refs: [] };
+  const RO_OK = new Set(['tab', 'logout', 'csv', 'refresh', 'view', 'detail']);
+  const DATA = { schools: [], subs: [], logs: [], msgs: [], refs: [], admins: [] };
   const $ = id => document.getElementById(id);
   const G = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
 
@@ -20,21 +21,19 @@
     const say = (m, k) => { const e = $('msg'); e.textContent = m; e.style.display = 'block'; e.style.background = k === 'ok' ? 'var(--green-s)' : 'var(--red-s)'; e.style.color = k === 'ok' ? 'var(--green)' : 'var(--red)'; };
     const check = async () => {
       const u = SG.user; if (!u) return;
-      if (SG.isAdmin()) return boot();
-      if (u.email && u.email.toLowerCase() === SG_CONFIG.adminEmail.toLowerCase() && !u.emailVerified) { try { await SG.sendVerification(); } catch (e) { } await SG.logout(); return say('Email non vérifié : un lien de vérification vient d\'être envoyé à ' + u.email + '. Cliquez dessus, puis reconnectez-vous.', 'ok'); }
-      await SG.logout(); say('Ce compte n\'est pas administrateur.');
+      if (u.email && !u.emailVerified) { try { await SG.sendVerification(); } catch (e) { } await SG.logout(); return say('Email non vérifié : un lien de vérification vient d\'être envoyé à ' + u.email + '. Cliquez dessus, puis reconnectez-vous.', 'ok'); }
+      await SG.loadRole(); if (SG.role) return boot();
+      await SG.logout(); say('Ce compte n\'est pas administrateur. Demandez à l\'administrateur principal de vous inviter avec cet email.');
     };
     $('g').onclick = async () => { try { const u = await SG.loginGoogle(); if (u) await check(); } catch (x) { say(SG.errMsg(x)); } };
     $('f').onsubmit = async e => { e.preventDefault(); const v = UI.read($('f')); if (!v.email || !v.pw) return say('Renseignez votre email et votre mot de passe.'); try { await SG.loginEmail(v.email, v.pw); await check(); } catch (x) { say(SG.errMsg(x)); } };
     $('fg').onclick = async () => {
       const em = (UI.read($('f')).email || '').trim();
-      if (!em) return say('Saisissez l\'email administrateur ci-dessus, puis cliquez sur « Mot de passe oublié ».');
-      if (em.toLowerCase() !== SG_CONFIG.adminEmail.toLowerCase()) return say('Seul l\'email administrateur peut être utilisé ici.');
+      if (!em) return say('Saisissez votre email ci-dessus, puis cliquez sur « Mot de passe oublié ».');
       try { await SG.resetPassword(em); say('Email envoyé à ' + em + ' : cliquez sur le lien pour choisir votre mot de passe (vérifiez aussi les spams).', 'ok'); } catch (x) { say(SG.errMsg(x)); }
     };
     $('mk').onclick = async () => {
-      const v = UI.read($('f')); if (!v.email || !v.pw) return say('Saisissez l\'email administrateur et le mot de passe voulu, puis cliquez à nouveau.');
-      if (v.email.trim().toLowerCase() !== SG_CONFIG.adminEmail.toLowerCase()) return say('Seul l\'email administrateur peut créer ce compte.');
+      const v = UI.read($('f')); if (!v.email || !v.pw) return say('Saisissez votre email et le mot de passe voulu, puis cliquez à nouveau.');
       if (v.pw.length < 8) return say('Au moins 8 caractères.');
       try { await SG.signupEmail(v.email, v.pw); await SG.sendVerification(); await SG.logout(); say('Compte créé. Un email de vérification a été envoyé : cliquez sur le lien, puis connectez-vous.', 'ok'); } catch (x) { say(SG.errMsg(x)); }
     };
@@ -129,6 +128,18 @@
     <div class="card"><div class="ch"><h3>Parrainages (${R.length})</h3></div><div class="tw">${R.length ? `<table class="tbl"><thead><tr><th>Filleule</th><th>Marraine</th><th>Statut du filleul</th><th></th></tr></thead><tbody>${R.map(({ r, filleul, marraine }) => `<tr><td><b>${esc(r.name)}</b><br><small class="muted">${fdate(new Date(r.createdAtMs).toISOString())}</small></td><td>${marraine ? esc(marraine.name) : '<span class="muted">Code ' + esc(r.code) + '</span>'}</td><td>${filleul ? badge(SG.STATUS[SG.status(filleul)][0], SG.STATUS[SG.status(filleul)][1]) : ''}</td><td>${r.rewarded ? badge('1 mois offert', 'ok') : filleul && marraine ? `<button class="btn btn-primary btn-sm" data-a="grant" data-id="${r.id}">Offrir 1 mois au parrain</button>` : ''}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucun parrainage</h4></div>'}</div></div>`;
   }
 
+  /* ---------- administrateurs invités (lecture seule) ---------- */
+  const adminUrl = () => location.href.replace(/[?#].*$/, '').replace(/[^/]*$/, '') + 'admin.html';
+  function adminsBody() {
+    return `<div class="card" style="margin-bottom:16px"><div class="ch"><h3>Inviter un administrateur</h3></div><div class="cb"><p class="muted small" style="margin-bottom:14px">Un administrateur invité peut seulement consulter : écoles, paiements, prospects, journal, et ouvrir l'espace d'une école en lecture seule. Il ne peut rien modifier, ni bannir, ni bloquer, ni encaisser, ni changer le site.</p>
+      <form class="frm" id="f-adm" novalidate><div class="fld half"><label>Nom</label><input type="text" name="name" placeholder="Ex : Léo"></div><div class="fld half"><label>Email (Gmail de préférence)</label><input type="email" name="email" placeholder="leo@gmail.com" required></div><div class="fld"><button class="btn btn-primary" data-a="addAdmin" type="button">Ajouter cet administrateur</button></div></form></div></div>
+      <div class="card"><div class="ch"><h3>Administrateurs (${DATA.admins.length + 1})</h3></div><div class="cb"><div class="row"><span><b>${esc(SG_CONFIG.adminEmail)}</b> <small class="muted">· administrateur principal</small></span>${badge('Tous les droits', 'ok')}</div>
+      ${DATA.admins.map(x => `<div class="row" style="gap:10px;flex-wrap:wrap"><span><b>${esc(x.name || x.email)}</b> <small class="muted">· ${esc(x.email)}</small></span><span style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${badge('Lecture seule', 'info')}<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${SG.waLink('', 'Bonjour' + (x.name ? ' ' + x.name : '') + ', je t\'ai ajouté comme administrateur (lecture seule) de School-G. Ouvre ' + adminUrl() + ' et connecte-toi avec Google avec l\'adresse ' + x.email + '.')}">Envoyer l'invitation</a><button class="btn btn-ghost btn-sm" data-a="delAdmin" data-id="${esc(x.email)}">Retirer</button></span></div>`).join('') || '<p class="muted small" style="margin-top:10px">Aucun administrateur invité pour le moment.</p>'}
+      <p class="small muted" style="margin-top:14px">La personne ouvre <span class="code">${esc(adminUrl())}</span> et se connecte avec Google, avec exactement l'email indiqué ci-dessus. Elle n'a pas besoin des codes d'accès.</p></div></div>`;
+  }
+  A.addAdmin = async () => { const v = UI.read($('f-adm')); try { await SG.addAdmin(v.email, v.name); DATA.admins = await SG.listAdmins(); SG.log('Administrateur invité : ' + v.email); UI.toast('Administrateur ajouté.', 'ok'); render(); } catch (e) { UI.toast(e.message && !e.code ? e.message : SG.errMsg(e), 'err'); } };
+  A.delAdmin = email => UI.confirm(`Retirer l'accès de <b>${esc(email)}</b> ? Il ne pourra plus ouvrir le panel.`, async () => { try { await SG.removeAdmin(email); DATA.admins = await SG.listAdmins(); SG.log('Administrateur retiré : ' + email); UI.toast('Accès retiré.', 'ok'); render(); } catch (e) { UI.toast(SG.errMsg(e), 'err'); } }, { danger: true, yes: 'Retirer' });
+
   /* ---------- modifier le site en direct (verrouillé par un second code) ---------- */
   function askSiteCode(then) {
     const m = UI.modal({ title: 'Modifier le site en live', size: 'sm', body: `<div style="text-align:center;margin-bottom:12px;color:var(--orange-d)">${ic('lock', 28)}</div><p style="margin-bottom:12px">Cette section est protégée. Saisissez le code à 4 chiffres.</p><div id="sce" style="display:none;background:var(--red-s);color:var(--red);padding:10px 12px;border-radius:6px;font-size:14px;margin-bottom:12px"></div><form id="scf" class="frm"><div class="fld"><input type="password" name="c" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="Code" style="text-align:center;letter-spacing:.4em;font-size:20px"></div><div class="fld"><button class="btn btn-navy btn-lg" style="width:100%">Déverrouiller</button></div></form>`, actions: [] });
@@ -193,7 +204,8 @@
 
   document.addEventListener('click', async e => {
     const el = e.target.closest('[data-a]'); if (!el) return; const a = el.dataset.a;
-    if (a === 'tab') { e.preventDefault(); if (ST.tab === 'site' && el.dataset.id !== 'site') SG.siteCodeClear(); if (el.dataset.id === 'site' && !SG.siteCodeOk()) return askSiteCode(); ST.tab = el.dataset.id; if (ST.tab === 'logs') await load('logs'); if (ST.tab === 'settings') await load('msgs'); if (ST.tab === 'site') { render(); await loadSiteTab(); } render(); return; }
+    if (!SG.isAdmin() && !RO_OK.has(a)) { e.preventDefault(); return UI.toast('Lecture seule : action réservée à l\'administrateur principal.', 'err'); }
+    if (a === 'tab') { e.preventDefault(); if (ST.tab === 'site' && el.dataset.id !== 'site') SG.siteCodeClear(); if (el.dataset.id === 'site' && !SG.siteCodeOk()) return askSiteCode(); ST.tab = el.dataset.id; if (ST.tab === 'logs') await load('logs'); if (ST.tab === 'settings') await load('msgs'); if (ST.tab === 'admins') { DATA.admins = await SG.listAdmins().catch(() => []); } if (ST.tab === 'site') { render(); await loadSiteTab(); } render(); return; }
     if (a === 'logout') { e.preventDefault(); await SG.logout(); loginView(); return; }
     if (a === 'csv') return exportCsv();
     if (a === 'plans') return SG.siteCodeOk() ? plansModal() : askSiteCode(plansModal);
@@ -224,14 +236,22 @@
     const st = SG.status(s); const b = (a, ico, t) => `<button class="btn btn-ghost btn-sm btn-icon" data-a="${a}" data-id="${s.id}" title="${t}" aria-label="${t}">${ic(ico, 16)}</button>`;
     return `<div class="acts">${b('detail', 'eye', 'Détails')}${b('view', 'school', 'Ouvrir l\'espace de l\'école')}<button class="btn btn-primary btn-sm" data-a="pay" data-id="${s.id}">Paiement</button>${b('edit', 'edit', 'Modifier')}${st === 'trial' ? `<button class="btn btn-ghost btn-sm" data-a="cancelTrial" data-id="${s.id}">Annuler l'essai</button>` : ''}${st === 'expired' || st === 'trial' ? `<button class="btn btn-ghost btn-sm" data-a="extend" data-id="${s.id}">Prolonger</button>` : ''}${st === 'banned' ? `<button class="btn btn-ghost btn-sm" data-a="unban" data-id="${s.id}">Débannir</button>` : `<button class="btn btn-danger btn-sm" data-a="ban" data-id="${s.id}">Bannir</button>`}${s.blocked ? `<button class="btn btn-ghost btn-sm" data-a="unblock" data-id="${s.id}">Débloquer</button>` : (st !== 'banned' ? `<button class="btn btn-ghost btn-sm" data-a="block" data-id="${s.id}">Bloquer</button>` : '')}</div>`;
   }
+  /* Lecture seule : on retire tous les boutons d'action (hors consultation). */
+  function stripRO() {
+    if (SG.isAdmin()) return;
+    document.querySelectorAll('.main [data-a]').forEach(el => { if (!RO_OK.has(el.dataset.a)) el.remove(); });
+    const b = document.querySelector('.main .top .sp'); if (b && !document.getElementById('roTag')) b.insertAdjacentHTML('afterend', '<span id="roTag" style="margin-right:12px">' + badge('Lecture seule', 'info') + '</span>');
+  }
   function drawList() {
     const box = $('list'); if (!box) return; const l = rows();
     box.innerHTML = l.length ? `<table class="tbl"><thead><tr><th>École</th><th>Contact</th><th>Statut</th><th>Reste</th><th class="c">Élèves</th><th>Inscrite</th><th></th></tr></thead><tbody>${l.map(s => { const st = SG.status(s); return `<tr><td><b>${esc(s.name)}</b><br><small class="muted">${esc(s.director)} · code ${esc(s.code)}</small></td><td>${esc(s.email)}<br><small class="muted">${esc(s.phone)}</small></td><td>${badge(SG.STATUS[st][0], SG.STATUS[st][1])}<br><small class="muted">${esc(s.plan)}</small></td><td>${st === 'trial' || st === 'active' ? SG.daysLeft(s) + ' j' : '—'}</td><td class="c">${(s.stats && s.stats.students) || 0}</td><td>${fdate(s.createdAt)}</td><td>${schoolActions(s)}</td></tr>`; }).join('')}</tbody></table>` : `<div class="empty"><h4>Aucune école</h4><p>${DATA.schools.length ? 'Aucun résultat pour ce filtre.' : 'Les écoles inscrites apparaîtront ici.'}</p></div>`;
+    stripRO();
   }
   function render() {
     const S = stats(); const g = SG.global();
-    const nav = [['dash', 'Vue d\'ensemble', 'grid'], ['schools', 'Écoles', 'school'], ['prospects', 'Prospects' + (prospects().length ? ' (' + prospects().length + ')' : ''), 'users'], ['pays', 'Paiements', 'wallet'], ['logs', 'Journal', 'list'], ['site', 'Modifier le site en live', 'edit'], ['settings', 'Réglages', 'set']];
+    const nav = [['dash', 'Vue d\'ensemble', 'grid'], ['schools', 'Écoles', 'school'], ['prospects', 'Prospects' + (prospects().length ? ' (' + prospects().length + ')' : ''), 'users'], ['pays', 'Paiements', 'wallet'], ['logs', 'Journal', 'list'], ['site', 'Modifier le site en live', 'edit'], ['admins', 'Administrateurs', 'shield'], ['settings', 'Réglages', 'set']].filter(n => SG.isAdmin() || ['dash', 'schools', 'prospects', 'pays', 'logs'].includes(n[0]));
     let body = '';
+    if (!nav.some(n => n[0] === ST.tab)) ST.tab = 'dash';
     if (ST.tab === 'dash') body = `<div class="kpis"><div class="kpi"><small>Écoles inscrites</small><b>${S.sch.length}</b><span>${S.students} élève(s) au total</span></div><div class="kpi g"><small>Abonnées actives</small><b>${S.by.active}</b><span>Conversion : ${S.conv} %</span></div><div class="kpi o"><small>En essai gratuit</small><b>${S.by.trial}</b><span>${S.by.expired} essai(s) expiré(s)</span></div><div class="kpi r"><small>Bloquées ou bannies</small><b>${S.by.blocked + S.by.banned}</b></div></div>
       <div class="kpis"><div class="kpi g"><small>Revenus du mois</small><b>${money(S.month)}</b></div><div class="kpi"><small>Revenus totaux</small><b>${money(S.total)}</b></div><div class="kpi o"><small>Paiements validés</small><b>${S.subs.length}</b></div><div class="kpi"><small>Prix moyen</small><b>${money(S.subs.length ? S.total / S.subs.length : 0)}</b></div></div>
       <div class="g21" style="margin-bottom:20px"><div class="card"><div class="ch"><h3>Inscriptions (barre orange) et revenus en milliers de FCFA (barre marine)</h3></div><div class="cb">${UI.bars(S.chart, { h: 190 })}</div></div>
@@ -239,6 +259,7 @@
       <div class="card"><div class="ch"><h3>Dernières inscriptions</h3><button class="btn btn-ghost btn-sm" data-a="tab" data-id="schools">Tout voir</button></div><div class="tw">${S.sch.length ? `<table class="tbl"><tbody>${S.sch.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 6).map(s => `<tr><td><b>${esc(s.name)}</b><br><small class="muted">${esc(s.email)}</small></td><td>${badge(SG.STATUS[SG.status(s)][0], SG.STATUS[SG.status(s)][1])}</td><td>${fdate(s.createdAt)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucune école pour l\'instant</h4><p>Les inscriptions à l\'essai gratuit apparaîtront ici.</p></div>'}</div></div>`;
     else if (ST.tab === 'schools') body = `<div class="tools"><div class="sr">${ic('search', 16)}<input type="search" id="q" placeholder="Rechercher une école, email, téléphone, code" value="${esc(ST.q)}"></div><select id="f"><option value="">Tous les statuts</option>${Object.entries(SG.STATUS).map(([k, v]) => `<option value="${k}" ${ST.f === k ? 'selected' : ''}>${v[0]}</option>`).join('')}</select><button class="btn btn-ghost" data-a="csv">${ic('dl', 16)}Exporter CSV</button><button class="btn btn-ghost" data-a="refresh">${ic('refresh', 16)}Actualiser</button></div><div class="card flat"><div class="tw" id="list"></div></div>`;
     else if (ST.tab === 'prospects') body = prospectsBody();
+    else if (ST.tab === 'admins') body = adminsBody();
     else if (ST.tab === 'site') body = SG.siteCodeOk() ? siteBody() : `<div class="card"><div class="cb"><p>Section verrouillée.</p><button class="btn btn-navy" data-a="unlockSite">Saisir le code</button></div></div>`;
     else if (ST.tab === 'pays') { const all = DATA.subs; body = `<div class="card flat"><div class="tw">${all.length ? `<table class="tbl"><thead><tr><th>Date</th><th>École</th><th>Formule</th><th>Mode</th><th class="r">Montant</th><th>État</th><th></th></tr></thead><tbody>${all.map(x => `<tr><td>${fdate(x.date)}</td><td><b>${esc(x.schoolName)}</b></td><td>${esc(x.plan)} · ${x.months} mois</td><td>${esc(x.method)}${x.ref ? '<br><small class="muted">' + esc(x.ref) + '</small>' : ''}</td><td class="r"><b>${money(x.amount)}</b></td><td>${badge(x.status, x.status === 'validé' ? 'ok' : 'bad')}</td><td class="r">${x.status === 'validé' ? `<button class="btn btn-danger btn-sm" data-a="refund" data-id="${x.id}">Annuler</button>` : ''}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucun paiement</h4><p>Enregistrez un paiement depuis la liste des écoles.</p></div>'}</div></div>`; }
     else if (ST.tab === 'logs') body = `<div class="card"><div class="cb" style="padding-top:6px;padding-bottom:6px">${DATA.logs.map(x => `<div class="row"><span>${esc(x.m)}</span><small class="muted nowrap">${new Date(x.tMs).toLocaleString('fr-FR')}</small></div>`).join('') || '<div class="empty"><h4>Journal vide</h4></div>'}</div></div>`;
@@ -251,7 +272,7 @@
       <div class="main"><header class="top"><button class="mb" id="mb" aria-label="Menu">${ic('menu', 24)}</button><div class="tt">${nav.find(n => n[0] === ST.tab)[1].replace(/ \(\d+\)$/, '')}</div><div class="sp"></div><div class="dt">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</div><div class="av">A</div></header><main id="view">${body}</main></div></div>`;
     const side = $('side'), scrim = $('scrim'); const tog = on => { side.classList.toggle('open', on); scrim.classList.toggle('on', on); };
     $('mb').onclick = () => tog(true); scrim.onclick = () => tog(false); side.addEventListener('click', e => { if (e.target.closest('a.it')) tog(false); });
-    drawList();
+    drawList(); stripRO();
   }
 
   function codeView(msg) {
@@ -264,8 +285,8 @@
     const ld = UI.loading(root, { name: 'School-G', sub: 'Administration', msg: 'Vérification de l\'accès…' });
     await SG.ready(); const u = SG.user; ld.set(60, 'Chargement des écoles…');
     if (!u) return loginView();
-    if (!SG.isAdmin()) { await SG.logout(); return loginView('Ce compte n\'est pas administrateur.'); }
-    if (!SG.adminCodeOk()) return codeView();
+    await SG.loadRole(); if (!SG.isStaff()) { await SG.logout(); return loginView('Ce compte n\'est pas administrateur.'); }
+    if (SG.isAdmin() && !SG.adminCodeOk()) return codeView();
     try { await load(); } catch (e) { return loginView('Lecture impossible : ' + SG.errMsg(e) + ' Vérifiez les règles Firestore et l\'email administrateur.'); }
     render(); liveStart();
   }

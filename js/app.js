@@ -126,7 +126,7 @@
   A.drawBanners = () => {
     const sc = school0, st = SG.status(sc), bn = [];
     const bd = document.getElementById('stBadge'); if (bd) bd.innerHTML = { trial: badge('Essai · ' + SG.daysLeft(sc) + ' j restants', 'or'), active: badge('Abonné · ' + SG.daysLeft(sc) + ' j', 'ok') }[st] || '';
-    if (sess.byAdmin) bn.push(`<div class="banner adm">${ic('shield', 18)}Mode administrateur : vous consultez cette école. <a href="#" id="exitAdm" style="font-weight:700;text-decoration:underline">Quitter</a></div>`);
+    if (sess.byAdmin) bn.push(`<div class="banner adm">${ic('shield', 18)}${SG._ro ? 'Mode lecture seule : vous consultez cette école sans pouvoir rien modifier.' : 'Mode administrateur : vous consultez cette école.'} <a href="#" id="exitAdm" style="font-weight:700;text-decoration:underline">Quitter</a></div>`);
     const g = SG.global(); if (g.announcement) bn.push(`<div class="banner info">${ic('bell', 18)}<span>${esc(g.announcement)}</span></div>`);
     if (st === 'trial') bn.push(`<div class="banner trial"><span>Essai gratuit : <b>${SG.daysLeft(sc)} jour(s)</b> restant(s).</span><button class="btn btn-primary btn-sm" data-sub="new">M'abonner</button></div>`);
     else if (st === 'active' && SG.daysLeft(sc) <= 7) bn.push(`<div class="banner trial"><span>Votre abonnement se termine dans <b>${SG.daysLeft(sc)} jour(s)</b>.</span><button class="btn btn-primary btn-sm" data-sub="renew">Renouveler</button></div>`);
@@ -254,7 +254,7 @@
       if (!user) return location.replace('login.html');
       const vid = new URLSearchParams(location.search).get('view');
       let id = user.uid;
-      if (vid && SG.isAdmin()) { id = vid; sess.byAdmin = true; }
+      if (vid) { await SG.loadRole(); if (SG.isStaff()) { id = vid; sess.byAdmin = true; if (!SG.isAdmin()) SG._ro = true; } }
       school0 = await SG.school(id); ld.set(62, 'Chargement de vos données…');
       if (!school0) return location.replace('login.html#finish');
       if (!cache || cache.id !== school0.id) ld.brand({ name: school0.name });

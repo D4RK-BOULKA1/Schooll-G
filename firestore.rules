@@ -15,6 +15,15 @@ service cloud.firestore {
         && request.auth.token.email_verified == true;
     }
 
+    // Administrateur invité (lecture seule) : son email figure dans la collection admins
+    function isViewer() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
+    }
+
+    function isStaff() { return isAdmin() || isViewer(); }
+
     function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
 
     function now() { return request.time.toMillis(); }
@@ -41,8 +50,8 @@ service cloud.firestore {
 
     // Fiche école et abonnement
     match /schools/{uid} {
-      allow get: if isOwner(uid) || isAdmin();
-      allow list: if isAdmin();
+      allow get: if isOwner(uid) || isStaff();
+      allow list: if isStaff();
 
       // Création à l'inscription : essai gratuit uniquement, pas d'abonnement ni de statut truqué
       allow create: if isOwner(uid)
@@ -64,7 +73,7 @@ service cloud.firestore {
 
       // Données de l'école (élèves, paiements, notes...) : seulement si l'accès est actif
       match /d/{docId} {
-        allow read: if isOwner(uid) || isAdmin();
+        allow read: if isOwner(uid) || isStaff();
         allow write: if isAdmin() || (isOwner(uid) && hasAccess(uid));
       }
     }
@@ -72,7 +81,7 @@ service cloud.firestore {
     // Informations publiques d'une école pour l'espace parent (identifiée par son code)
     match /pub/{code} {
       allow get: if true;
-      allow list: if isAdmin();
+      allow list: if isStaff();
 
       allow create: if signedIn()
         && request.resource.data.ownerUid == request.auth.uid
@@ -94,7 +103,7 @@ service cloud.firestore {
     // Dossier d'un élève pour son parent : lecture par identifiant secret uniquement (pas de liste)
     match /pstu/{id} {
       allow get: if true;
-      allow list: if isAdmin();
+      allow list: if isStaff();
       allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
       allow update: if isAdmin()
         || (isOwner(resource.data.ownerUid) && request.resource.data.ownerUid == resource.data.ownerUid);
@@ -103,13 +112,13 @@ service cloud.firestore {
 
     // Messages de l'administrateur : lisibles par l'école visée (ou par toutes), écriture réservée à l'admin
     match /msgs/{id} {
-      allow read: if isAdmin() || (signedIn() && resource.data.target in ['all', request.auth.uid]);
+      allow read: if isStaff() || (signedIn() && resource.data.target in ['all', request.auth.uid]);
       allow write: if isAdmin();
     }
 
     // Parrainage : un filleul déclare son parrain à l'inscription ; le parrain lit ses filleuls ; l'admin accorde la récompense
     match /refs/{id} {
-      allow read: if isAdmin()
+      allow read: if isStaff()
         || (signedIn() && exists(/databases/$(database)/documents/schools/$(request.auth.uid))
             && resource.data.code == get(/databases/$(database)/documents/schools/$(request.auth.uid)).data.code);
       allow create: if signedIn() && id == request.auth.uid && request.resource.data.ownerUid == request.auth.uid && request.resource.data.rewarded == false;
@@ -117,7 +126,13 @@ service cloud.firestore {
     }
 
     // Abonnements payés et journal : administrateur uniquement
-    match /subs/{id} { allow read, write: if isAdmin(); }
-    match /logs/{id} { allow read, write: if isAdmin(); }
+    match /subs/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
+    match /logs/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
+
+    // Administrateurs invités (lecture seule) : seul l'administrateur principal les gère ; chacun peut lire sa propre fiche
+    match /admins/{email} {
+      allow read: if isAdmin() || (signedIn() && request.auth.token.email.lower() == email);
+      allow write: if isAdmin();
+    }
   }
 }

@@ -64,6 +64,21 @@
     SG.user = u; await SG.loadGlobal(); return u;
   })());
   if (auth) auth.onAuthStateChanged(u => { SG.user = u; });
+  /* Rôles : « owner » = administrateur principal (tous les droits) ; « viewer » = administrateur invité en lecture seule (liste dans la collection admins). */
+  SG.role = '';
+  SG.isOwner = () => !!(SG.user && SG.user.emailVerified && SG.user.email && SG.user.email.toLowerCase() === C.adminEmail.toLowerCase());
+  SG.isViewer = () => SG.role === 'viewer';
+  SG.isStaff = () => SG.isAdmin() || SG.isViewer();
+  SG.loadRole = async () => {
+    SG.role = '';
+    const u = SG.user; if (!u || !u.email || !u.emailVerified) return SG.role;
+    if (SG.isOwner()) { SG.role = 'owner'; return SG.role; }
+    try { const d = await db.collection('admins').doc(u.email.toLowerCase()).get(); if (d.exists) SG.role = 'viewer'; } catch (e) { }
+    return SG.role;
+  };
+  SG.listAdmins = async () => { const snap = await db.collection('admins').get(); const l = []; snap.forEach(d => l.push(Object.assign({ id: d.id }, d.data()))); return l.sort((a, b) => (a.createdMs || 0) - (b.createdMs || 0)); };
+  SG.addAdmin = async (email, name) => { const e = String(email || '').trim().toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new Error('Email invalide.'); if (e === C.adminEmail.toLowerCase()) throw new Error('C\'est déjà l\'administrateur principal.'); await db.collection('admins').doc(e).set({ email: e, name: String(name || '').trim(), role: 'viewer', createdMs: Date.now() }); };
+  SG.removeAdmin = email => db.collection('admins').doc(String(email).toLowerCase()).delete();
   SG.isAdmin = () => !!(SG.user && SG.user.emailVerified && SG.user.email && SG.user.email.toLowerCase() === C.adminEmail.toLowerCase());
   SG.hasPassword = () => !!(SG.user && SG.user.providerData.some(p => p.providerId === 'password'));
   SG.loginEmail = async (email, pw) => (await auth.signInWithEmailAndPassword(String(email).trim(), pw)).user;
@@ -132,8 +147,10 @@
 
   const syncCbs = []; SG.onSync = cb => syncCbs.push(cb); const setSync = (v, e) => syncCbs.forEach(cb => cb(v, e));
 
-  SG.saveData = (id, D) => { const s = S(id); s.D = D; clearTimeout(s.timer); setSync('pending'); s.timer = setTimeout(() => SG.flush(id), 900); };
+  const roWarn = () => { if (!SG._roWarned) { SG._roWarned = true; try { UI.toast('Lecture seule : vos modifications ne sont pas enregistrées.', 'err'); } catch (e) { } } };
+  SG.saveData = (id, D) => { if (SG._ro) return roWarn(); const s = S(id); s.D = D; clearTimeout(s.timer); setSync('pending'); s.timer = setTimeout(() => SG.flush(id), 900); };
   SG.flush = id => {
+    if (SG._ro) return Promise.resolve();
     const s = S(id); clearTimeout(s.timer); s.timer = null;
     s.chain = s.chain.then(async () => {
       const D = s.D; if (!D) return; setSync('saving');
