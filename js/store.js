@@ -35,7 +35,8 @@
   SG._global = { trialDays: C.trialDays, plans: C.plans, announcement: '', contactWa: C.contact.whatsapp, contactMail: C.contact.email };
   /* Le tarif « Paiement unique » (sans prix, sur demande) est toujours présent, même si la configuration enregistrée est plus ancienne. */
   const UNIQ = C.plans.find(p => p.id === 'unique');
-  const fixPlans = () => { const g = SG._global; if (UNIQ && Array.isArray(g.plans) && !g.plans.some(p => p.id === 'unique')) g.plans = g.plans.concat([Object.assign({}, UNIQ)]); };
+  /* Anciennes descriptions enregistrées en base : « deux mois offerts » devient « cinq mois offerts » (le code fait foi). */
+  const fixPlans = () => { const g = SG._global; if (Array.isArray(g.plans)) g.plans = g.plans.map(p => (p.desc && /deux mois offerts/i.test(p.desc)) ? Object.assign({}, p, { desc: p.desc.replace(/deux mois offerts/i, 'cinq mois offerts') }) : p); if (UNIQ && Array.isArray(g.plans) && !g.plans.some(p => p.id === 'unique')) g.plans = g.plans.concat([Object.assign({}, UNIQ)]); };
   SG.planPrice = p => (p.price == null || p.price === '') ? 'Sur demande' : (UI.money ? UI.money(p.price) : p.price + ' FCFA');
   SG.planOnRequest = p => p.price == null || p.price === '';
   SG.planPeriod = p => p.months >= 600 ? 'paiement unique' : (p.months > 1 ? p.months + ' mois' : 'mois');
