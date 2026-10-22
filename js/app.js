@@ -80,8 +80,8 @@
   A.subscribe = (sc, renew) => {
     sc = sc || school0; const g = SG.global(); const fm = n => UI.money ? UI.money(n) : n + ' FCFA';
     const body = `<p class="muted" style="margin-bottom:14px">Choisissez une formule : WhatsApp s'ouvre avec votre demande déjà écrite.</p><div style="display:grid;gap:10px">${(g.plans || []).map((p, i, a) => {
-      const msg = 'Bonjour, je souhaite ' + (renew ? 'renouveler mon abonnement' : 'm\'abonner') + ' à School-G, formule ' + p.name + ' (' + p.price + ' FCFA, ' + p.months + ' mois), pour l\'école ' + sc.name + ' (' + sc.email + ').';
-      return `<a class="btn ${i === a.length - 1 ? 'btn-primary' : 'btn-ghost'}" target="_blank" rel="noopener" href="${SG.waLink(g.contactWa, msg)}" style="justify-content:space-between;padding:14px 16px;height:auto;text-align:left"><span><b>${esc(p.name)}</b><br><small style="opacity:.8;font-weight:400">${esc(p.desc || '')}</small></span><b>${esc(fm(p.price))}</b></a>`;
+      const msg = 'Bonjour, je souhaite ' + (renew ? 'renouveler mon abonnement' : 'm\'abonner') + ' à School-G, formule ' + p.name + (SG.planOnRequest(p) ? ' (prix sur demande), pour l\'école ' : ' (' + p.price + ' FCFA, ' + (p.months >= 600 ? 'paiement unique' : p.months + ' mois') + '), pour l\'école ') + sc.name + ' (' + sc.email + ').';
+      return `<a class="btn ${i === a.length - 1 ? 'btn-primary' : 'btn-ghost'}" target="_blank" rel="noopener" href="${SG.waLink(g.contactWa, msg)}" style="justify-content:space-between;padding:14px 16px;height:auto;text-align:left"><span><b>${esc(p.name)}</b><br><small style="opacity:.8;font-weight:400">${esc(p.desc || '')}</small></span><b>${esc(SG.planOnRequest(p) ? 'Sur demande' : fm(p.price))}</b></a>`;
     }).join('')}</div>`;
     UI.modal({ title: 'Choisir une formule', body, size: 'sm', actions: [{ label: 'Fermer' }] });
   };

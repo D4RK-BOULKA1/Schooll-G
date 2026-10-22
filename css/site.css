@@ -73,11 +73,11 @@
 .steps div{padding:26px 28px 6px 0}.steps b{font-family:var(--fh);font-size:54px;color:var(--orange);line-height:1}
 .steps h3{font-size:21px;margin:12px 0 8px}.steps p{color:var(--ink2)}
 /* tarifs */
-.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--ink)}
-.plan{padding:34px;display:flex;flex-direction:column;background:#fff}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0;border:1px solid var(--ink)}
+.plan{padding:28px;display:flex;flex-direction:column;background:#fff}
 .plan+.plan{border-left:1px solid var(--ink)}
 .plan.hot{background:var(--navy);color:#fff}
-.plan h3{font-size:22px}.plan .pr{font-family:var(--fh);font-size:40px;margin:14px 0 2px;line-height:1}
+.plan h3{font-size:22px}.plan .pr{font-family:var(--fh);font-size:34px;margin:14px 0 2px;line-height:1}
 .plan .pr small{font-size:14px;font-family:var(--fb);opacity:.7}
 .plan p{font-size:14px;opacity:.8;margin-bottom:20px}
 .plan ul{list-style:none;display:grid;gap:8px;margin-bottom:26px;font-size:14px;flex:1}

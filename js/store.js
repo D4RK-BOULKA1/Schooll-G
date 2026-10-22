@@ -33,11 +33,25 @@
 
   /* ---------- configuration globale ---------- */
   SG._global = { trialDays: C.trialDays, plans: C.plans, announcement: '', contactWa: C.contact.whatsapp, contactMail: C.contact.email };
+  /* Le tarif « Paiement unique » (sans prix, sur demande) est toujours présent, même si la configuration enregistrée est plus ancienne. */
+  const UNIQ = C.plans.find(p => p.id === 'unique');
+  const fixPlans = () => { const g = SG._global; if (UNIQ && Array.isArray(g.plans) && !g.plans.some(p => p.id === 'unique')) g.plans = g.plans.concat([Object.assign({}, UNIQ)]); };
+  SG.planPrice = p => (p.price == null || p.price === '') ? 'Sur demande' : (UI.money ? UI.money(p.price) : p.price + ' FCFA');
+  SG.planOnRequest = p => p.price == null || p.price === '';
+  SG.planPeriod = p => p.months >= 600 ? 'paiement unique' : (p.months > 1 ? p.months + ' mois' : 'mois');
   SG.global = () => SG._global;
-  SG.loadGlobal = async () => { if (!db) return SG._global; try { const d = await db.collection('global').doc('config').get(); if (d.exists) Object.assign(SG._global, d.data()); } catch (e) { } return SG._global; };
+  SG.loadGlobal = async () => { if (!db) return SG._global; try { const d = await db.collection('global').doc('config').get(); if (d.exists) Object.assign(SG._global, d.data()); } catch (e) { } fixPlans(); return SG._global; };
   /* Écoute en direct : la fiche de l'école (statut, abonnement) et la configuration globale (annonce, tarifs). */
-  SG.watchGlobal = cb => db.collection('global').doc('config').onSnapshot(d => { if (d.exists) { Object.assign(SG._global, d.data()); } cb && cb(SG._global); }, () => { });
+  SG.watchGlobal = cb => db.collection('global').doc('config').onSnapshot(d => { if (d.exists) { Object.assign(SG._global, d.data()); } fixPlans(); cb && cb(SG._global); }, () => { });
   SG.setGlobal = async o => { await db.collection('global').doc('config').set(o, { merge: true }); Object.assign(SG._global, o); };
+  /* Contenu modifiable de la page d'accueil (global/site) : textes par identifiant et sections masquées. */
+  const siteCache = () => { try { return JSON.parse(localStorage.getItem('sg_site') || 'null'); } catch (e) { return null; } };
+  SG._site = siteCache() || { texts: {}, hidden: {} };
+  SG.site = () => SG._site;
+  const setSite = d => { SG._site = { texts: (d && d.texts) || {}, hidden: (d && d.hidden) || {} }; try { localStorage.setItem('sg_site', JSON.stringify(SG._site)); } catch (e) { } return SG._site; };
+  SG.watchSite = cb => db.collection('global').doc('site').onSnapshot(d => { cb && cb(setSite(d.exists ? d.data() : null)); }, () => { });
+  SG.loadSite = async () => { const d = await db.collection('global').doc('site').get(); return setSite(d.exists ? d.data() : null); };
+  SG.saveSite = async site => { await db.collection('global').doc('site').set({ texts: site.texts || {}, hidden: site.hidden || {}, updatedAtMs: Date.now() }); setSite(site); };
 
   /* ---------- authentification ---------- */
   let readyP = null;

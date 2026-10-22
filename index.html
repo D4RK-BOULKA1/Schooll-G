@@ -1,186 +1,176 @@
 <!doctype html>
+
 <html lang="fr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
 <title>School-G, le logiciel de gestion pour écoles privées</title>
-<meta name="description" content="School-G gère toute votre école : inscriptions, scolarité, paiements, notes, bulletins, cartes scolaires, stock et comptabilité. Essai gratuit de 7 jours.">
-<meta name="theme-color" content="#14213D">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="css/base.css">
-<link rel="stylesheet" href="css/site.css">
+<meta content="School-G gère toute votre école : inscriptions, scolarité, paiements, notes, bulletins, cartes scolaires, stock et comptabilité. Essai gratuit de 7 jours." name="description"/>
+<meta content="#14213D" name="theme-color"/>
+<link href="manifest.webmanifest" rel="manifest"/>
+<link href="icon.svg" rel="icon" type="image/svg+xml"/>
+<link href="css/base.css" rel="stylesheet"/>
+<link href="css/site.css" rel="stylesheet"/>
 </head>
 <body>
-<header class="nav" id="nav">
-  <div class="wrap">
-    <a class="logo" href="index.html"><i>G</i>School-G</a>
-    <ul>
-      <li><a href="#fonctions">Fonctionnalités</a></li>
-      <li><a href="#espaces">Espaces</a></li>
-      <li><a href="#bulletins">Bulletins</a></li>
-      <li><a href="#tarifs">Tarifs</a></li>
-      <li><a href="#faq">Questions</a></li>
-    </ul>
-    <div class="r">
-      <a class="adm" href="admin.html">Admin</a>
-      <a class="btn btn-ghost btn-sm" href="login.html">Connexion</a>
-      <a class="btn btn-primary btn-sm" href="login.html#signup">Essai gratuit</a>
-      <button class="burger" id="burger" aria-label="Menu"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
-    </div>
-  </div>
+<header class="nav" data-sec="Menu du haut" data-secid="nav" id="nav">
+<div class="wrap">
+<a class="logo" href="index.html"><i>G</i>School-G</a>
+<ul>
+<li><a data-ed="nav-1" href="#fonctions">Fonctionnalités</a></li>
+<li><a data-ed="nav-2" href="#espaces">Espaces</a></li>
+<li><a data-ed="nav-3" href="#bulletins">Bulletins</a></li>
+<li><a data-ed="nav-4" href="#tarifs">Tarifs</a></li>
+<li><a data-ed="nav-5" href="#faq">Questions</a></li>
+</ul>
+<div class="r">
+<a class="adm" href="admin.html">Admin</a>
+<a class="btn btn-ghost btn-sm" data-ed="nav-6" href="login.html">Connexion</a>
+<a class="btn btn-primary btn-sm" data-ed="nav-7" href="login.html#signup">Essai gratuit</a>
+<button aria-label="Menu" class="burger" id="burger"><svg fill="none" height="26" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="26"><path d="M3 6h18M3 12h18M3 18h18"></path></svg></button>
+</div>
+</div>
 </header>
-
-<section class="hero">
-  <div class="wrap">
-    <div>
-      <span class="kick">Gestion scolaire, du Jardin à la Terminale</span>
-      <h1>Votre école, de l'inscription au bulletin, <em>dans un seul logiciel.</em></h1>
-      <p class="lead">Élèves, professeurs, scolarité, paiements, pointage, notes, bulletins, cartes scolaires, stock et comptabilité. School-G remplace les cahiers, les tableurs et les calculs à la main.</p>
-      <div class="cta">
-        <a class="btn btn-primary btn-lg" href="login.html#signup">Commencer l'essai gratuit de 7 jours</a>
-        <a class="btn btn-ghost btn-lg" href="#fonctions">Voir les fonctionnalités</a>
-      </div>
-      <div class="fine">
-        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>Aucune installation</span>
-        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>Fonctionne sur téléphone</span>
-        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>Sans engagement</span>
-      </div>
-    </div>
-    <div class="mock" aria-hidden="true">
-      <div class="bar"><b></b><b></b><b></b></div>
-      <div class="body">
-        <div class="sd"><div class="on">Tableau de bord</div><div>Élèves</div><div>Pointage</div><div>Classes</div><div>Notes</div><div>Bulletins</div><div>Paiements</div><div>Stock</div><div>Comptabilité</div></div>
-        <div class="mn">
-          <div class="k"><div>Élèves inscrits<b>412</b></div><div>Encaissé ce mois<b>3 840 000</b></div><div>Impayés<b>1 260 000</b></div></div>
-          <div class="ch"><i style="height:46%"></i><i style="height:62%"></i><i style="height:38%"></i><i style="height:78%"></i><i style="height:55%"></i><i style="height:92%"></i><i style="height:70%"></i><i style="height:84%"></i></div>
-          <div class="ls"><div><span>Traoré Aminata, 6e année</span><em>Soldé</em></div><div><span>Coulibaly Moussa, 3e année</span><em class="l">En retard</em></div><div><span>Diarra Fanta, Terminale</span><em>Soldé</em></div></div>
-        </div>
-      </div>
-    </div>
-  </div>
+<section class="hero" data-sec="Bandeau principal" data-secid="hero">
+<div class="wrap">
+<div>
+<span class="kick" data-ed="hero-1">Gestion scolaire, du Jardin à la Terminale</span>
+<h1 data-ed="hero-2">Votre école, de l'inscription au bulletin, <em>dans un seul logiciel.</em></h1>
+<p class="lead" data-ed="hero-3">Élèves, professeurs, scolarité, paiements, pointage, notes, bulletins, cartes scolaires, stock et comptabilité. School-G remplace les cahiers, les tableurs et les calculs à la main.</p>
+<div class="cta">
+<a class="btn btn-primary btn-lg" data-ed="hero-4" href="login.html#signup">Commencer l'essai gratuit de 7 jours</a>
+<a class="btn btn-ghost btn-lg" data-ed="hero-5" href="#fonctions">Voir les fonctionnalités</a>
+</div>
+<div class="fine">
+<span><svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" viewbox="0 0 24 24" width="16"><path d="M4 12.5l5 5L20 6.5"></path></svg><span data-ed="hero-6">Aucune installation</span></span>
+<span><svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" viewbox="0 0 24 24" width="16"><path d="M4 12.5l5 5L20 6.5"></path></svg><span data-ed="hero-7">Fonctionne sur téléphone</span></span>
+<span><svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" viewbox="0 0 24 24" width="16"><path d="M4 12.5l5 5L20 6.5"></path></svg><span data-ed="hero-8">Sans engagement</span></span>
+</div>
+</div>
+<div aria-hidden="true" class="mock">
+<div class="bar"><b></b><b></b><b></b></div>
+<div class="body">
+<div class="sd"><div class="on">Tableau de bord</div><div>Élèves</div><div>Pointage</div><div>Classes</div><div>Notes</div><div>Bulletins</div><div>Paiements</div><div>Stock</div><div>Comptabilité</div></div>
+<div class="mn">
+<div class="k"><div>Élèves inscrits<b>412</b></div><div>Encaissé ce mois<b>3 840 000</b></div><div>Impayés<b>1 260 000</b></div></div>
+<div class="ch"><i style="height:46%"></i><i style="height:62%"></i><i style="height:38%"></i><i style="height:78%"></i><i style="height:55%"></i><i style="height:92%"></i><i style="height:70%"></i><i style="height:84%"></i></div>
+<div class="ls"><div><span>Traoré Aminata, 6e année</span><em>Soldé</em></div><div><span>Coulibaly Moussa, 3e année</span><em class="l">En retard</em></div><div><span>Diarra Fanta, Terminale</span><em>Soldé</em></div></div>
+</div>
+</div>
+</div>
+</div>
 </section>
-
-<section class="stats">
-  <div class="wrap">
-    <div><b>7 jours</b><span>d'essai gratuit complet</span></div>
-    <div><b>15</b><span>modules de gestion intégrés</span></div>
-    <div><b>2</b><span>espaces séparés : direction et parents</span></div>
-    <div><b>Jardin → Terminale</b><span>toutes les classes prises en charge</span></div>
-  </div>
+<section class="stats" data-sec="Chiffres clés" data-secid="stats">
+<div class="wrap">
+<div><b data-ed="stats-1">7 jours</b><span data-ed="stats-2">d'essai gratuit complet</span></div>
+<div><b data-ed="stats-3">15</b><span data-ed="stats-4">modules de gestion intégrés</span></div>
+<div><b data-ed="stats-5">2</b><span data-ed="stats-6">espaces séparés : direction et parents</span></div>
+<div><b data-ed="stats-7">Jardin → Terminale</b><span data-ed="stats-8">toutes les classes prises en charge</span></div>
+</div>
 </section>
-
-<section class="sec" id="fonctions">
-  <div class="wrap">
-    <div class="sh"><span class="n">01</span><div><h2>Tout ce dont une école a besoin pour fonctionner</h2><p>Chaque module est relié aux autres : un paiement met à jour la scolarité de l'élève, la comptabilité et le tableau de bord, sans ressaisie.</p></div></div>
-    <div class="feat">
-      <div><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-6A3.5 3.5 0 0 0 3 18.5V20M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M21 20v-1.5a3.5 3.5 0 0 0-2.5-3.3M15.5 4.2a3.5 3.5 0 0 1 0 6.6"/></svg><span><h3>Élèves et inscriptions</h3><p>Une fiche détaillée par élève : identité, parent, photo, classe, remise, cantine, code d'accès parent. Inscription et premier paiement en une seule étape.</p></span></div>
-      <div><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg><span><h3>Pointage élève par élève</h3><p>Présent, en retard ou absent, avec l'heure d'arrivée. Rapports par classe et par mois, et historique complet sur la fiche de chaque élève.</p></span></div>
-      <div><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5h20v14H2zM2 10h20M6 15h4"/></svg><span><h3>Scolarité par tranches</h3><p>Définissez vos tranches et leurs dates. School-G indique qui a payé, qui a payé en partie et qui est en retard, et prépare le message de relance WhatsApp.</p></span></div>
-      <div><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><path d="M8.5 14l-1.5 8 5-3 5 3-1.5-8"/></svg><span><h3>Notes et bulletins</h3><p>Saisie par matière, moyennes pondérées, rangs, mentions. Cinq thèmes de bulletin et un thème entièrement personnalisable.</p></span></div>
-      <div><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5h20v14H2z"/><circle cx="7.5" cy="11" r="2"/><path d="M13 9.5h6M13 14.5h4"/></svg><span><h3>Cartes scolaires</h3><p>Le nom et le logo de votre école, la photo et le matricule de l'élève, un QR code. Impression à l'unité ou par classe entière.</p></span></div>
-      <div><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18v16H3zM3 10h18M8 2v5M16 2v5"/></svg><span><h3>Emplois du temps</h3><p>Une grille par classe, du Jardin à la Terminale, et une vue par professeur. Imprimable en un clic.</p></span></div>
-      <div><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 20.5v-1.5a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v1.5M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/></svg><span><h3>Professeurs et salaires</h3><p>Dossier de chaque enseignant, matières, classes, salaire mensuel payé ou non payé. Les salaires alimentent automatiquement la comptabilité.</p></span></div>
-      <div><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l9 4.5v10l-9 4.5-9-4.5V7zM3 7l9 4.5L21 7M12 11.5v10"/></svg><span><h3>Stock, tenues et cantine</h3><p>Entrées et sorties, alertes de seuil, vente de tenues à un élève, abonnements cantine suivis mois par mois.</p></span></div>
-      <div><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l7 7 4-4 7 7M15 17h6v-6"/></svg><span><h3>Dépenses</h3><p>Loyer, électricité, fournitures, entretien. Vos dernières dépenses restent visibles sur le tableau de bord.</p></span></div>
-      <div><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h16a2 2 0 0 1 2 2v10H5a2 2 0 0 1-2-2zM3 7l14-3v3M16 14h2"/></svg><span><h3>Comptabilité</h3><p>Recettes, dépenses et solde par mois et par année, journal de caisse exportable vers Excel, reçus de paiement imprimables.</p></span></div>
-      <div><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9a6 6 0 0 0-12 0c0 6-2.5 8-2.5 8h17S18 15 18 9M10 21a2 2 0 0 0 4 0"/></svg><span><h3>Avis aux parents</h3><p>Le directeur publie un avis, tous les parents le voient dans leur espace. Avis général ou réservé à une classe.</p></span></div>
-      <div><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h8M15 6h6M3 12h4M11 12h10M3 18h10M17 18h4"/><circle cx="13" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="15" cy="18" r="2"/></svg><span><h3>Entièrement personnalisable</h3><p>Nom, logo et couleur de votre école, tranches, matières, coefficients, périodes, horaires et en-têtes officiels.</p></span></div>
-    </div>
-  </div>
+<section class="sec" data-sec="Fonctionnalités" data-secid="fonctions" id="fonctions">
+<div class="wrap">
+<div class="sh"><span class="n">01</span><div><h2 data-ed="fonctions-1">Tout ce dont une école a besoin pour fonctionner</h2><p data-ed="fonctions-2">Chaque module est relié aux autres : un paiement met à jour la scolarité de l'élève, la comptabilité et le tableau de bord, sans ressaisie.</p></div></div>
+<div class="feat">
+<div><svg fill="none" height="26" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24" width="26"><path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-6A3.5 3.5 0 0 0 3 18.5V20M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M21 20v-1.5a3.5 3.5 0 0 0-2.5-3.3M15.5 4.2a3.5 3.5 0 0 1 0 6.6"></path></svg><span><h3 data-ed="fonctions-3">Élèves et inscriptions</h3><p data-ed="fonctions-4">Une fiche détaillée par élève : identité, parent, photo, classe, remise, cantine, code d'accès parent. Inscription et premier paiement en une seule étape.</p></span></div>
+<div><svg fill="none" height="26" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24" width="26"><path d="M4 12.5l5 5L20 6.5"></path></svg><span><h3 data-ed="fonctions-5">Pointage élève par élève</h3><p data-ed="fonctions-6">Présent, en retard ou absent, avec l'heure d'arrivée. Rapports par classe et par mois, et historique complet sur la fiche de chaque élève.</p></span></div>
+<div><svg fill="none" height="26" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24" width="26"><path d="M2 5h20v14H2zM2 10h20M6 15h4"></path></svg><span><h3 data-ed="fonctions-7">Scolarité par tranches</h3><p data-ed="fonctions-8">Définissez vos tranches et leurs dates. School-G indique qui a payé, qui a payé en partie et qui est en retard, et prépare le message de relance WhatsApp.</p></span></div>
+<div><svg fill="none" height="26" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24" width="26"><circle cx="12" cy="9" r="6"></circle><path d="M8.5 14l-1.5 8 5-3 5 3-1.5-8"></path></svg><span><h3 data-ed="fonctions-9">Notes et bulletins</h3><p data-ed="fonctions-10">Saisie par matière, moyennes pondérées, rangs, mentions. Cinq thèmes de bulletin et un thème entièrement personnalisable.</p></span></div>
+<div><svg fill="none" height="26" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24" width="26"><path d="M2 5h20v14H2z"></path><circle cx="7.5" cy="11" r="2"></circle><path d="M13 9.5h6M13 14.5h4"></path></svg><span><h3 data-ed="fonctions-11">Cartes scolaires</h3><p data-ed="fonctions-12">Le nom et le logo de votre école, la photo et le matricule de l'élève, un QR code. Impression à l'unité ou par classe entière.</p></span></div>
+<div><svg fill="none" height="26" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24" width="26"><path d="M3 5h18v16H3zM3 10h18M8 2v5M16 2v5"></path></svg><span><h3 data-ed="fonctions-13">Emplois du temps</h3><p data-ed="fonctions-14">Une grille par classe, du Jardin à la Terminale, et une vue par professeur. Imprimable en un clic.</p></span></div>
+<div><svg fill="none" height="26" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24" width="26"><path d="M19 20.5v-1.5a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v1.5M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"></path></svg><span><h3 data-ed="fonctions-15">Professeurs et salaires</h3><p data-ed="fonctions-16">Dossier de chaque enseignant, matières, classes, salaire mensuel payé ou non payé. Les salaires alimentent automatiquement la comptabilité.</p></span></div>
+<div><svg fill="none" height="26" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24" width="26"><path d="M12 2.5l9 4.5v10l-9 4.5-9-4.5V7zM3 7l9 4.5L21 7M12 11.5v10"></path></svg><span><h3 data-ed="fonctions-17">Stock, tenues et cantine</h3><p data-ed="fonctions-18">Entrées et sorties, alertes de seuil, vente de tenues à un élève, abonnements cantine suivis mois par mois.</p></span></div>
+<div><svg fill="none" height="26" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24" width="26"><path d="M3 7l7 7 4-4 7 7M15 17h6v-6"></path></svg><span><h3 data-ed="fonctions-19">Dépenses</h3><p data-ed="fonctions-20">Loyer, électricité, fournitures, entretien. Vos dernières dépenses restent visibles sur le tableau de bord.</p></span></div>
+<div><svg fill="none" height="26" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24" width="26"><path d="M3 7h16a2 2 0 0 1 2 2v10H5a2 2 0 0 1-2-2zM3 7l14-3v3M16 14h2"></path></svg><span><h3 data-ed="fonctions-21">Comptabilité</h3><p data-ed="fonctions-22">Recettes, dépenses et solde par mois et par année, journal de caisse exportable vers Excel, reçus de paiement imprimables.</p></span></div>
+<div><svg fill="none" height="26" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24" width="26"><path d="M18 9a6 6 0 0 0-12 0c0 6-2.5 8-2.5 8h17S18 15 18 9M10 21a2 2 0 0 0 4 0"></path></svg><span><h3 data-ed="fonctions-23">Avis aux parents</h3><p data-ed="fonctions-24">Le directeur publie un avis, tous les parents le voient dans leur espace. Avis général ou réservé à une classe.</p></span></div>
+<div><svg fill="none" height="26" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24" width="26"><path d="M3 6h8M15 6h6M3 12h4M11 12h10M3 18h10M17 18h4"></path><circle cx="13" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="15" cy="18" r="2"></circle></svg><span><h3 data-ed="fonctions-25">Entièrement personnalisable</h3><p data-ed="fonctions-26">Nom, logo et couleur de votre école, tranches, matières, coefficients, périodes, horaires et en-têtes officiels.</p></span></div>
+</div>
+</div>
 </section>
-
-<section class="sec alt" id="espaces">
-  <div class="wrap">
-    <div class="sh"><span class="n">02</span><div><h2>Deux espaces, chacun pour son usage</h2><p>La direction pilote l'école, les parents suivent leur enfant. Les deux espaces sont distincts, avec leurs propres accès.</p></div></div>
-    <div class="two">
-      <div>
-        <span class="tag">Espace direction</span>
-        <h3>Le poste de pilotage de l'école</h3>
-        <p class="muted">Un tableau de bord qui répond d'abord aux questions du jour.</p>
-        <ul>
-          <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>Encaissements, impayés, dépenses et solde du mois</li>
-          <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>Élèves en retard de paiement et retardataires du jour</li>
-          <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>Alertes de stock et dernières dépenses</li>
-          <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>Fiche complète de chaque élève et de chaque professeur</li>
-        </ul>
-      </div>
-      <div class="navy">
-        <span class="tag">Espace parents</span>
-        <h3>Le suivi de l'enfant dans la poche</h3>
-        <p>Chaque parent se connecte avec le code remis par l'école.</p>
-        <ul>
-          <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>Avis publiés par la direction</li>
-          <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>Notes, bulletins et classement</li>
-          <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>Paiements effectués, tranches restantes, reçus</li>
-          <li><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>Présences, retards, emploi du temps et carte scolaire</li>
-        </ul>
-      </div>
-    </div>
-  </div>
+<section class="sec alt" data-sec="Espaces direction et parents" data-secid="espaces" id="espaces">
+<div class="wrap">
+<div class="sh"><span class="n">02</span><div><h2 data-ed="espaces-1">Deux espaces, chacun pour son usage</h2><p data-ed="espaces-2">La direction pilote l'école, les parents suivent leur enfant. Les deux espaces sont distincts, avec leurs propres accès.</p></div></div>
+<div class="two">
+<div>
+<span class="tag" data-ed="espaces-3">Espace direction</span>
+<h3 data-ed="espaces-4">Le poste de pilotage de l'école</h3>
+<p class="muted" data-ed="espaces-5">Un tableau de bord qui répond d'abord aux questions du jour.</p>
+<ul>
+<li><svg fill="none" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" viewbox="0 0 24 24" width="18"><path d="M4 12.5l5 5L20 6.5"></path></svg><span data-ed="espaces-6">Encaissements, impayés, dépenses et solde du mois</span></li>
+<li><svg fill="none" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" viewbox="0 0 24 24" width="18"><path d="M4 12.5l5 5L20 6.5"></path></svg><span data-ed="espaces-7">Élèves en retard de paiement et retardataires du jour</span></li>
+<li><svg fill="none" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" viewbox="0 0 24 24" width="18"><path d="M4 12.5l5 5L20 6.5"></path></svg><span data-ed="espaces-8">Alertes de stock et dernières dépenses</span></li>
+<li><svg fill="none" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" viewbox="0 0 24 24" width="18"><path d="M4 12.5l5 5L20 6.5"></path></svg><span data-ed="espaces-9">Fiche complète de chaque élève et de chaque professeur</span></li>
+</ul>
+</div>
+<div class="navy">
+<span class="tag" data-ed="espaces-10">Espace parents</span>
+<h3 data-ed="espaces-11">Le suivi de l'enfant dans la poche</h3>
+<p data-ed="espaces-12">Chaque parent se connecte avec le code remis par l'école.</p>
+<ul>
+<li><svg fill="none" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" viewbox="0 0 24 24" width="18"><path d="M4 12.5l5 5L20 6.5"></path></svg><span data-ed="espaces-13">Avis publiés par la direction</span></li>
+<li><svg fill="none" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" viewbox="0 0 24 24" width="18"><path d="M4 12.5l5 5L20 6.5"></path></svg><span data-ed="espaces-14">Notes, bulletins et classement</span></li>
+<li><svg fill="none" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" viewbox="0 0 24 24" width="18"><path d="M4 12.5l5 5L20 6.5"></path></svg><span data-ed="espaces-15">Paiements effectués, tranches restantes, reçus</span></li>
+<li><svg fill="none" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" viewbox="0 0 24 24" width="18"><path d="M4 12.5l5 5L20 6.5"></path></svg><span data-ed="espaces-16">Présences, retards, emploi du temps et carte scolaire</span></li>
+</ul>
+</div>
+</div>
+</div>
 </section>
-
-<section class="sec" id="bulletins">
-  <div class="wrap">
-    <div class="sh"><span class="n">03</span><div><h2>Des bulletins à l'image de votre école</h2><p>Choisissez parmi cinq thèmes prêts à imprimer, ou composez le vôtre élément par élément : couleurs, police, colonnes, rubriques, signatures, en-tête officiel.</p></div></div>
-    <div class="bw">
-      <div><div class="bt"><h6>Classique</h6><div class="hd" style="background:#14213D"></div><div class="ln o"></div><div class="tb"><i style="background:#14213D"></i><i></i><i></i><i></i></div></div><div class="btn-name">Classique</div></div>
-      <div><div class="bt dbl"><h6 style="text-align:center">République du Mali</h6><div class="ln" style="margin:6px auto;width:60%"></div><div class="tb"><i style="background:#14213D"></i><i></i><i></i><i></i></div></div><div class="btn-name">Officiel</div></div>
-      <div><div class="bt" style="border-left:6px solid #E4572E"><h6>Moderne</h6><div class="hd" style="background:#E4572E"></div><div class="tb"><i style="background:#E4572E"></i><i></i><i></i><i></i></div></div><div class="btn-name">Moderne</div></div>
-      <div><div class="bt"><h6 style="text-align:center">Minimal</h6><div class="ln" style="margin:6px auto;width:50%"></div><div class="tb"><i style="background:#222"></i><i style="background:#fff;border-bottom:1px solid #ddd"></i><i style="background:#fff;border-bottom:1px solid #ddd"></i></div></div><div class="btn-name">Minimal</div></div>
-      <div><div class="bt thk"><h6 style="text-align:center">Marine</h6><div class="hd" style="background:#14213D"></div><div class="tb"><i style="background:#14213D"></i><i></i><i></i><i></i></div></div><div class="btn-name">Marine</div></div>
-      <div><div class="bt" style="border:1px dashed #E4572E;background:#FCEDE6"><h6>Personnalisé</h6><div class="ln o" style="width:70%"></div><div class="ln" style="width:50%"></div><div class="ln" style="width:60%"></div></div><div class="btn-name">Le vôtre</div></div>
-    </div>
-  </div>
+<section class="sec" data-sec="Bulletins" data-secid="bulletins" id="bulletins">
+<div class="wrap">
+<div class="sh"><span class="n">03</span><div><h2 data-ed="bulletins-1">Des bulletins à l'image de votre école</h2><p data-ed="bulletins-2">Choisissez parmi cinq thèmes prêts à imprimer, ou composez le vôtre élément par élément : couleurs, police, colonnes, rubriques, signatures, en-tête officiel.</p></div></div>
+<div class="bw">
+<div><div class="bt"><h6>Classique</h6><div class="hd" style="background:#14213D"></div><div class="ln o"></div><div class="tb"><i style="background:#14213D"></i><i></i><i></i><i></i></div></div><div class="btn-name" data-ed="bulletins-3">Classique</div></div>
+<div><div class="bt dbl"><h6 style="text-align:center">République du Mali</h6><div class="ln" style="margin:6px auto;width:60%"></div><div class="tb"><i style="background:#14213D"></i><i></i><i></i><i></i></div></div><div class="btn-name" data-ed="bulletins-4">Officiel</div></div>
+<div><div class="bt" style="border-left:6px solid #E4572E"><h6>Moderne</h6><div class="hd" style="background:#E4572E"></div><div class="tb"><i style="background:#E4572E"></i><i></i><i></i><i></i></div></div><div class="btn-name" data-ed="bulletins-5">Moderne</div></div>
+<div><div class="bt"><h6 style="text-align:center">Minimal</h6><div class="ln" style="margin:6px auto;width:50%"></div><div class="tb"><i style="background:#222"></i><i style="background:#fff;border-bottom:1px solid #ddd"></i><i style="background:#fff;border-bottom:1px solid #ddd"></i></div></div><div class="btn-name" data-ed="bulletins-6">Minimal</div></div>
+<div><div class="bt thk"><h6 style="text-align:center">Marine</h6><div class="hd" style="background:#14213D"></div><div class="tb"><i style="background:#14213D"></i><i></i><i></i><i></i></div></div><div class="btn-name" data-ed="bulletins-7">Marine</div></div>
+<div><div class="bt" style="border:1px dashed #E4572E;background:#FCEDE6"><h6>Personnalisé</h6><div class="ln o" style="width:70%"></div><div class="ln" style="width:50%"></div><div class="ln" style="width:60%"></div></div><div class="btn-name" data-ed="bulletins-8">Le vôtre</div></div>
+</div>
+</div>
 </section>
-
-<section class="sec alt">
-  <div class="wrap">
-    <div class="sh"><span class="n">04</span><div><h2>Prêt en trois étapes</h2></div></div>
-    <div class="steps">
-      <div><b>1</b><h3>Créez votre compte</h3><p>Nom de l'école, email, mot de passe. L'essai de 7 jours démarre aussitôt, sans paiement.</p></div>
-      <div><b>2</b><h3>Configurez</h3><p>Importez votre logo, générez les classes du Jardin à la Terminale, fixez vos tarifs et vos tranches.</p></div>
-      <div><b>3</b><h3>Pilotez</h3><p>Inscrivez les élèves, encaissez, pointez, saisissez les notes et imprimez bulletins et cartes.</p></div>
-    </div>
-  </div>
+<section class="sec alt" data-sec="Trois étapes" data-secid="steps">
+<div class="wrap">
+<div class="sh"><span class="n">04</span><div><h2 data-ed="steps-1">Prêt en trois étapes</h2></div></div>
+<div class="steps">
+<div><b data-ed="steps-2">1</b><h3 data-ed="steps-3">Créez votre compte</h3><p data-ed="steps-4">Nom de l'école, email, mot de passe. L'essai de 7 jours démarre aussitôt, sans paiement.</p></div>
+<div><b data-ed="steps-5">2</b><h3 data-ed="steps-6">Configurez</h3><p data-ed="steps-7">Importez votre logo, générez les classes du Jardin à la Terminale, fixez vos tarifs et vos tranches.</p></div>
+<div><b data-ed="steps-8">3</b><h3 data-ed="steps-9">Pilotez</h3><p data-ed="steps-10">Inscrivez les élèves, encaissez, pointez, saisissez les notes et imprimez bulletins et cartes.</p></div>
+</div>
+</div>
 </section>
-
-<section class="sec" id="tarifs">
-  <div class="wrap">
-    <div class="sh"><span class="n">05</span><div><h2>Un abonnement simple</h2><p>Toutes les fonctionnalités sont incluses dans chaque formule. Essayez d'abord pendant 7 jours.</p></div></div>
-    <div class="plans" id="plans"></div>
-  </div>
+<section class="sec" data-sec="Tarifs" data-secid="tarifs" id="tarifs">
+<div class="wrap">
+<div class="sh"><span class="n">05</span><div><h2 data-ed="tarifs-1">Un abonnement simple</h2><p data-ed="tarifs-2">Toutes les fonctionnalités sont incluses dans chaque formule. Essayez d'abord pendant 7 jours.</p></div></div>
+<div class="plans" id="plans"></div>
+</div>
 </section>
-
-<section class="sec alt" id="faq">
-  <div class="wrap">
-    <div class="sh"><span class="n">06</span><div><h2>Questions fréquentes</h2></div></div>
-    <div class="faq">
-      <details><summary>Que se passe-t-il à la fin des 7 jours d'essai ?</summary><p>L'accès est suspendu jusqu'au paiement d'un abonnement. Vos données restent conservées : vous retrouvez votre école exactement comme vous l'avez laissée.</p></details>
-      <details><summary>Faut-il installer un logiciel ?</summary><p>Non. School-G s'ouvre dans le navigateur, sur ordinateur, tablette ou téléphone, et peut être ajouté à l'écran d'accueil comme une application.</p></details>
-      <details><summary>Comment les parents accèdent-ils à leur espace ?</summary><p>Chaque élève dispose d'un code parent généré par School-G. La direction le remet aux parents, qui se connectent avec le code de l'école, le matricule et ce code.</p></details>
-      <details><summary>Puis-je adapter les tranches, les matières et les bulletins ?</summary><p>Oui. Les tranches de scolarité, matières, coefficients, périodes, horaires, couleurs et rubriques du bulletin se règlent dans les paramètres.</p></details>
-      <details><summary>Quelles classes sont prises en charge ?</summary><p>Du Jardin (petite, moyenne et grande section) jusqu'à la Terminale, en passant par le primaire et le collège. Vous pouvez aussi créer vos propres classes.</p></details>
-      <details><summary>Comment payer l'abonnement ?</summary><p>Contactez-nous par WhatsApp ou par email. Le paiement est enregistré par notre équipe et votre accès est réactivé immédiatement.</p></details>
-    </div>
-  </div>
+<section class="sec alt" data-sec="Questions fréquentes" data-secid="faq" id="faq">
+<div class="wrap">
+<div class="sh"><span class="n">06</span><div><h2 data-ed="faq-1">Questions fréquentes</h2></div></div>
+<div class="faq">
+<details><summary data-ed="faq-2">Que se passe-t-il à la fin des 7 jours d'essai ?</summary><p data-ed="faq-3">L'accès est suspendu jusqu'au paiement d'un abonnement. Vos données restent conservées : vous retrouvez votre école exactement comme vous l'avez laissée.</p></details>
+<details><summary data-ed="faq-4">Faut-il installer un logiciel ?</summary><p data-ed="faq-5">Non. School-G s'ouvre dans le navigateur, sur ordinateur, tablette ou téléphone, et peut être ajouté à l'écran d'accueil comme une application.</p></details>
+<details><summary data-ed="faq-6">Comment les parents accèdent-ils à leur espace ?</summary><p data-ed="faq-7">Chaque élève dispose d'un code parent généré par School-G. La direction le remet aux parents, qui se connectent avec le code de l'école, le matricule et ce code.</p></details>
+<details><summary data-ed="faq-8">Puis-je adapter les tranches, les matières et les bulletins ?</summary><p data-ed="faq-9">Oui. Les tranches de scolarité, matières, coefficients, périodes, horaires, couleurs et rubriques du bulletin se règlent dans les paramètres.</p></details>
+<details><summary data-ed="faq-10">Quelles classes sont prises en charge ?</summary><p data-ed="faq-11">Du Jardin (petite, moyenne et grande section) jusqu'à la Terminale, en passant par le primaire et le collège. Vous pouvez aussi créer vos propres classes.</p></details>
+<details><summary data-ed="faq-12">Comment payer l'abonnement ?</summary><p data-ed="faq-13">Contactez-nous par WhatsApp ou par email. Le paiement est enregistré par notre équipe et votre accès est réactivé immédiatement.</p></details>
+</div>
+</div>
 </section>
-
-<section class="cta-band">
-  <div class="wrap">
-    <div><h2>Donnez à votre école les outils qu'elle mérite.</h2><p>Sept jours pour tout essayer, sans carte bancaire.</p></div>
-    <a class="btn btn-primary btn-lg" href="login.html#signup">Créer mon compte gratuitement</a>
-  </div>
+<section class="cta-band" data-sec="Appel à l'action" data-secid="cta">
+<div class="wrap">
+<div><h2 data-ed="cta-1">Donnez à votre école les outils qu'elle mérite.</h2><p data-ed="cta-2">Sept jours pour tout essayer, sans carte bancaire.</p></div>
+<a class="btn btn-primary btn-lg" data-ed="cta-3" href="login.html#signup">Créer mon compte gratuitement</a>
+</div>
 </section>
-
-<footer class="ft">
-  <div class="wrap">
-    <div class="col"><a class="logo" href="index.html"><i>G</i>School-G</a><span>Le logiciel de gestion des écoles privées.</span></div>
-    <div class="col"><b>Accès</b><a href="login.html">Connexion directeur</a><a href="login.html#parent">Espace parent</a><a href="login.html#signup">Essai gratuit</a></div>
-    <div class="col"><b>Contact</b><a id="ftWa" href="#">WhatsApp</a><a id="ftMail" href="#">Email</a><a class="adm" href="admin.html">Admin</a></div>
-  </div>
+<footer class="ft" data-sec="Pied de page" data-secid="footer">
+<div class="wrap">
+<div class="col"><a class="logo" href="index.html"><i>G</i>School-G</a><span data-ed="footer-1">Le logiciel de gestion des écoles privées.</span></div>
+<div class="col"><b data-ed="footer-2">Accès</b><a data-ed="footer-3" href="login.html">Connexion directeur</a><a data-ed="footer-4" href="login.html#parent">Espace parent</a><a data-ed="footer-5" href="login.html#signup">Essai gratuit</a></div>
+<div class="col"><b data-ed="footer-6">Contact</b><a data-ed="footer-7" href="#" id="ftWa">WhatsApp</a><a data-ed="footer-8" href="#" id="ftMail">Email</a><a class="adm" href="admin.html">Admin</a></div>
+</div>
 </footer>
-
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>

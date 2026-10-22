@@ -74,9 +74,9 @@
   A.pay = id => {
     const g = SG.global(); const s = byId(id);
     UI.formModal({
-      title: 'Enregistrer un paiement : ' + esc(s.name), fields: [{ name: 'plan', label: 'Formule', type: 'select', options: g.plans.map(p => [p.id, p.name + ' · ' + money(p.price)]) }, { name: 'amount', label: 'Montant reçu (FCFA)', type: 'number', min: 0, def: g.plans[0].price, cls: 'half' }, { name: 'months', label: 'Durée (mois)', type: 'number', min: 1, def: g.plans[0].months, cls: 'half' }, { name: 'method', label: 'Mode de paiement', type: 'select', options: ['Orange Money', 'Moov Money', 'Espèces', 'Virement', 'Autre'], cls: 'half' }, { name: 'ref', label: 'Référence', cls: 'half' }, { name: 'note', label: 'Note' }],
+      title: 'Enregistrer un paiement : ' + esc(s.name), fields: [{ name: 'plan', label: 'Formule', type: 'select', options: g.plans.map(p => [p.id, p.name + ' · ' + SG.planPrice(p)]) }, { name: 'amount', label: 'Montant reçu (FCFA)', type: 'number', min: 0, def: g.plans[0].price == null ? '' : g.plans[0].price, cls: 'half' }, { name: 'months', label: 'Durée (mois)', type: 'number', min: 1, def: g.plans[0].months, cls: 'half' }, { name: 'method', label: 'Mode de paiement', type: 'select', options: ['Orange Money', 'Moov Money', 'Espèces', 'Virement', 'Autre'], cls: 'half' }, { name: 'ref', label: 'Référence', cls: 'half' }, { name: 'note', label: 'Note' }],
       submit: 'Enregistrer et activer', onSubmit: v => { const p = g.plans.find(x => x.id === v.plan); run(async () => { await SG.recordSub(id, { plan: p ? p.name : 'Abonnement', amount: v.amount, months: +v.months || 1, method: v.method, ref: v.ref, note: v.note }); await load('subs'); }, 'Abonnement activé.'); },
-      after: el => { const f = el.querySelector('form'); f.querySelector('[name=plan]').addEventListener('change', e => { const p = g.plans.find(x => x.id === e.target.value); if (p) { f.querySelector('[name=amount]').value = p.price; f.querySelector('[name=months]').value = p.months; } }); }
+      after: el => { const f = el.querySelector('form'); f.querySelector('[name=plan]').addEventListener('change', e => { const p = g.plans.find(x => x.id === e.target.value); if (p) { f.querySelector('[name=amount]').value = p.price == null ? '' : p.price; f.querySelector('[name=months]').value = p.months; } }); }
     });
   };
   A.edit = id => {
@@ -129,6 +129,43 @@
     <div class="card"><div class="ch"><h3>Parrainages (${R.length})</h3></div><div class="tw">${R.length ? `<table class="tbl"><thead><tr><th>Filleule</th><th>Marraine</th><th>Statut du filleul</th><th></th></tr></thead><tbody>${R.map(({ r, filleul, marraine }) => `<tr><td><b>${esc(r.name)}</b><br><small class="muted">${fdate(new Date(r.createdAtMs).toISOString())}</small></td><td>${marraine ? esc(marraine.name) : '<span class="muted">Code ' + esc(r.code) + '</span>'}</td><td>${filleul ? badge(SG.STATUS[SG.status(filleul)][0], SG.STATUS[SG.status(filleul)][1]) : ''}</td><td>${r.rewarded ? badge('1 mois offert', 'ok') : filleul && marraine ? `<button class="btn btn-primary btn-sm" data-a="grant" data-id="${r.id}">Offrir 1 mois au parrain</button>` : ''}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucun parrainage</h4></div>'}</div></div>`;
   }
 
+  /* ---------- modifier le site en direct ---------- */
+  const KIND = { H1: 'Titre principal', H2: 'Titre', H3: 'Sous-titre', H4: 'Sous-titre', P: 'Paragraphe', A: 'Bouton ou lien', BUTTON: 'Bouton', LI: 'Liste', SUMMARY: 'Question', SPAN: 'Texte', B: 'Texte', SMALL: 'Texte', DIV: 'Texte' };
+  const flat = h => String(h == null ? '' : h).replace(/\s+/g, ' ').trim();
+  async function loadSiteTab() {
+    ST.siteErr = '';
+    try {
+      const r = await fetch('index.html?v=' + Date.now(), { cache: 'no-store' }); if (!r.ok) throw new Error('Page d\'accueil introuvable.');
+      const doc = new DOMParser().parseFromString(await r.text(), 'text/html'); const fields = [], secs = [], defs = {};
+      doc.querySelectorAll('[data-secid]').forEach(sec => { secs.push({ id: sec.dataset.secid, name: sec.dataset.sec || sec.dataset.secid }); });
+      doc.querySelectorAll('[data-ed]').forEach(el => { const sec = el.closest('[data-secid]'); const f = { key: el.dataset.ed, def: flat(el.innerHTML), tag: el.tagName, sid: sec ? sec.dataset.secid : '' }; defs[f.key] = f.def; fields.push(f); });
+      const md = doc.querySelector('meta[name=description]'); defs['meta-title'] = flat(doc.title); defs['meta-desc'] = flat(md ? md.getAttribute('content') : '');
+      ST.site = { fields, secs, defs }; ST.siteCur = await SG.loadSite();
+    } catch (e) { ST.siteErr = e.message || 'Chargement impossible.'; }
+  }
+  function siteBody() {
+    const g = SG.global(), S = ST.site, cur = ST.siteCur || { texts: {}, hidden: {} };
+    if (ST.siteErr) return `<div class="card"><div class="cb"><p>${esc(ST.siteErr)}</p></div></div>`;
+    if (!S) return `<div class="card"><div class="cb"><p class="muted">Chargement du contenu du site…</p></div></div>`;
+    const val = k => cur.texts[k] != null && String(cur.texts[k]).trim() !== '' ? cur.texts[k] : S.defs[k];
+    const field = (k, label, big) => `<div class="fld" style="margin-bottom:12px"><label style="display:flex;justify-content:space-between;gap:8px"><span>${esc(label)}</span><button type="button" class="btn-link" data-a="siteReset" data-id="${esc(k)}" style="background:none;border:0;color:var(--orange-d);font-size:12.5px;padding:0">Rétablir</button></label><textarea data-k="${esc(k)}" rows="${big || Math.min(6, Math.max(1, Math.ceil(String(val(k)).length / 70)))}" placeholder="${esc(S.defs[k])}">${esc(val(k))}</textarea></div>`;
+    const grp = S.secs.map(sec => { const fs = S.fields.filter(f => f.sid === sec.id); if (!fs.length) return ''; const fixed = sec.id === 'nav' || sec.id === 'footer';
+      return `<details class="card" style="margin-bottom:12px"><summary class="ch" style="cursor:pointer;list-style:none"><h3>${esc(sec.name)}</h3><small class="muted">${fs.length} texte(s)</small></summary><div class="cb">${fixed ? '' : `<label class="chk" style="margin-bottom:14px"><input type="checkbox" data-h="${esc(sec.id)}" ${cur.hidden[sec.id] ? '' : 'checked'}><span>Afficher cette section sur le site</span></label>`}${fs.map(f => field(f.key, (KIND[f.tag] || 'Texte') + ' · ' + f.key)).join('')}</div></details>`; }).join('');
+    const plans = g.plans.map(p => `<div class="row"><span>${esc(p.name)}</span><b>${esc(SG.planPrice(p))}${SG.planOnRequest(p) ? '' : ' / ' + (p.months >= 600 ? 'paiement unique' : p.months + ' mois')}</b></div>`).join('');
+    return `<div class="card" style="margin-bottom:12px"><div class="ch"><h3>Tarifs, essai et contacts</h3><button class="btn btn-primary btn-sm" data-a="plans">Modifier</button></div><div class="cb"><div class="row"><span>Durée de l'essai</span><b>${g.trialDays} jours</b></div>${plans}<div class="row"><span>WhatsApp</span><b>${esc(g.contactWa)}</b></div><div class="row"><span>Email</span><b>${esc(g.contactMail)}</b></div></div></div>
+    <details class="card" style="margin-bottom:12px"><summary class="ch" style="cursor:pointer;list-style:none"><h3>Titre de l'onglet et description Google</h3></summary><div class="cb">${field('meta-title', 'Titre affiché dans l\'onglet du navigateur')}${field('meta-desc', 'Description pour Google', 3)}</div></details>
+    <p class="muted small" style="margin:14px 0 10px">Cliquez sur une section pour modifier ses textes. Vous pouvez garder <span class="code">&lt;em&gt;mot&lt;/em&gt;</span> ou <span class="code">&lt;b&gt;mot&lt;/b&gt;</span> pour mettre un mot en valeur. Après « Publier », le site change tout de suite, sans rechargement.</p>
+    ${grp}
+    <div style="position:sticky;bottom:0;background:var(--bg,#fff);padding:12px 0;display:flex;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line2)"><button class="btn btn-primary btn-lg" data-a="sitePublish">Publier les modifications</button><a class="btn btn-ghost btn-lg" href="index.html" target="_blank" rel="noopener">Voir le site</a></div>`;
+  }
+  A.siteReset = k => { const t = document.querySelector('textarea[data-k="' + k + '"]'); if (t && ST.site) t.value = ST.site.defs[k] || ''; };
+  A.sitePublish = async () => {
+    const S = ST.site; if (!S) return; const texts = {}, hidden = {};
+    document.querySelectorAll('textarea[data-k]').forEach(t => { const v = t.value.trim(); if (v && flat(v) !== S.defs[t.dataset.k]) texts[t.dataset.k] = v; });
+    document.querySelectorAll('input[data-h]').forEach(c => { if (!c.checked) hidden[c.dataset.h] = true; });
+    try { await SG.saveSite({ texts, hidden }); ST.siteCur = { texts, hidden }; SG.log('Site modifié (' + Object.keys(texts).length + ' texte(s))'); UI.toast('Site mis à jour : les visiteurs le voient déjà.', 'ok'); } catch (e) { UI.toast(SG.errMsg(e), 'err'); }
+  };
+
   A.sendMsg = async () => {
     const f = $('f-msg'), v = UI.read(f); if (!v.title.trim() || !v.body.trim()) return UI.toast('Renseignez le titre et le message.', 'err');
     const sc = v.target === 'all' ? null : byId(v.target);
@@ -140,7 +177,7 @@
 
   document.addEventListener('click', async e => {
     const el = e.target.closest('[data-a]'); if (!el) return; const a = el.dataset.a;
-    if (a === 'tab') { e.preventDefault(); ST.tab = el.dataset.id; if (ST.tab === 'logs') await load('logs'); if (ST.tab === 'settings') await load('msgs'); render(); return; }
+    if (a === 'tab') { e.preventDefault(); ST.tab = el.dataset.id; if (ST.tab === 'logs') await load('logs'); if (ST.tab === 'settings') await load('msgs'); if (ST.tab === 'site') { render(); await loadSiteTab(); } render(); return; }
     if (a === 'logout') { e.preventDefault(); await SG.logout(); loginView(); return; }
     if (a === 'csv') return exportCsv();
     if (a === 'plans') return plansModal();
@@ -151,11 +188,12 @@
   document.addEventListener('input', e => { if (e.target.id === 'q') { ST.q = e.target.value; drawList(); } });
   document.addEventListener('change', e => { if (e.target.id === 'f') { ST.f = e.target.value; drawList(); } });
 
+  const DEFAULT_FEATS = ['Tous les modules inclus', 'Élèves et professeurs illimités', 'Espace parents inclus', 'Mises à jour incluses', 'Assistance par WhatsApp'];
   function plansModal() {
     const g = SG.global(); const plans = g.plans.map(p => ({ ...p }));
     UI.formModal({
-      title: 'Tarifs et paramètres', size: 'lg', fields: [{ name: 'trialDays', label: 'Durée de l\'essai (jours)', type: 'number', min: 1, def: g.trialDays, cls: 'half' }, { name: 'contactWa', label: 'WhatsApp de contact', def: g.contactWa, cls: 'half' }, { name: 'contactMail', label: 'Email de contact', def: g.contactMail }, ...plans.flatMap((p, i) => [{ name: 'n' + i, label: 'Formule ' + (i + 1) + ' : nom', def: p.name, cls: 'third' }, { name: 'p' + i, label: 'Prix (FCFA)', type: 'number', def: p.price, cls: 'third' }, { name: 'm' + i, label: 'Mois', type: 'number', def: p.months, cls: 'third' }])],
-      onSubmit: v => SG.setGlobal({ trialDays: +v.trialDays || 7, contactWa: v.contactWa, contactMail: v.contactMail, plans: plans.map((p, i) => ({ ...p, name: v['n' + i], price: +v['p' + i], months: +v['m' + i] || 1 })) }).then(() => { UI.toast('Paramètres enregistrés.', 'ok'); render(); }).catch(x => UI.toast(SG.errMsg(x), 'err'))
+      title: 'Tarifs et paramètres', size: 'lg', fields: [{ name: 'trialDays', label: 'Durée de l\'essai (jours)', type: 'number', min: 1, def: g.trialDays, cls: 'half' }, { name: 'contactWa', label: 'WhatsApp de contact', def: g.contactWa, cls: 'half' }, { name: 'contactMail', label: 'Email de contact', def: g.contactMail }, ...plans.flatMap((p, i) => [{ name: 'n' + i, label: 'Formule ' + (i + 1) + ' : nom', def: p.name, cls: 'third' }, { name: 'p' + i, label: 'Prix (FCFA, vide = sur demande)', type: 'number', def: p.price == null ? '' : p.price, cls: 'third' }, { name: 'm' + i, label: p.months >= 600 ? 'Mois (1200 = à vie)' : 'Mois', type: 'number', def: p.months, cls: 'third' }, { name: 'd' + i, label: 'Description affichée', def: p.desc || '' }]), { name: 'feats', label: 'Avantages affichés sous chaque tarif (un par ligne)', type: 'textarea', rows: 5, def: (g.planFeats && g.planFeats.length ? g.planFeats : DEFAULT_FEATS).join('\n') }],
+      onSubmit: v => SG.setGlobal({ trialDays: +v.trialDays || 7, contactWa: v.contactWa, contactMail: v.contactMail, plans: plans.map((p, i) => ({ ...p, name: v['n' + i], price: String(v['p' + i] == null ? '' : v['p' + i]).trim() === '' ? null : +v['p' + i], months: +v['m' + i] || 1, desc: v['d' + i] || '' })), planFeats: String(v.feats || '').split('\n').map(x => x.trim()).filter(Boolean) }).then(() => { UI.toast('Paramètres enregistrés.', 'ok'); render(); }).catch(x => UI.toast(SG.errMsg(x), 'err'))
     });
   }
   function announceModal() { const g = SG.global(); UI.formModal({ title: 'Annonce affichée à toutes les écoles', fields: [{ name: 'a', label: 'Message (vide pour retirer)', type: 'textarea', rows: 3, def: g.announcement }], onSubmit: v => SG.setGlobal({ announcement: v.a.trim() }).then(() => { UI.toast('Annonce mise à jour.', 'ok'); render(); }).catch(x => UI.toast(SG.errMsg(x), 'err')) }); }
@@ -176,7 +214,7 @@
   }
   function render() {
     const S = stats(); const g = SG.global();
-    const nav = [['dash', 'Vue d\'ensemble', 'grid'], ['schools', 'Écoles', 'school'], ['prospects', 'Prospects' + (prospects().length ? ' (' + prospects().length + ')' : ''), 'users'], ['pays', 'Paiements', 'wallet'], ['logs', 'Journal', 'list'], ['settings', 'Réglages', 'set']];
+    const nav = [['dash', 'Vue d\'ensemble', 'grid'], ['schools', 'Écoles', 'school'], ['prospects', 'Prospects' + (prospects().length ? ' (' + prospects().length + ')' : ''), 'users'], ['pays', 'Paiements', 'wallet'], ['logs', 'Journal', 'list'], ['site', 'Modifier le site en live', 'edit'], ['settings', 'Réglages', 'set']];
     let body = '';
     if (ST.tab === 'dash') body = `<div class="kpis"><div class="kpi"><small>Écoles inscrites</small><b>${S.sch.length}</b><span>${S.students} élève(s) au total</span></div><div class="kpi g"><small>Abonnées actives</small><b>${S.by.active}</b><span>Conversion : ${S.conv} %</span></div><div class="kpi o"><small>En essai gratuit</small><b>${S.by.trial}</b><span>${S.by.expired} essai(s) expiré(s)</span></div><div class="kpi r"><small>Bloquées ou bannies</small><b>${S.by.blocked + S.by.banned}</b></div></div>
       <div class="kpis"><div class="kpi g"><small>Revenus du mois</small><b>${money(S.month)}</b></div><div class="kpi"><small>Revenus totaux</small><b>${money(S.total)}</b></div><div class="kpi o"><small>Paiements validés</small><b>${S.subs.length}</b></div><div class="kpi"><small>Prix moyen</small><b>${money(S.subs.length ? S.total / S.subs.length : 0)}</b></div></div>
@@ -185,9 +223,10 @@
       <div class="card"><div class="ch"><h3>Dernières inscriptions</h3><button class="btn btn-ghost btn-sm" data-a="tab" data-id="schools">Tout voir</button></div><div class="tw">${S.sch.length ? `<table class="tbl"><tbody>${S.sch.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 6).map(s => `<tr><td><b>${esc(s.name)}</b><br><small class="muted">${esc(s.email)}</small></td><td>${badge(SG.STATUS[SG.status(s)][0], SG.STATUS[SG.status(s)][1])}</td><td>${fdate(s.createdAt)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucune école pour l\'instant</h4><p>Les inscriptions à l\'essai gratuit apparaîtront ici.</p></div>'}</div></div>`;
     else if (ST.tab === 'schools') body = `<div class="tools"><div class="sr">${ic('search', 16)}<input type="search" id="q" placeholder="Rechercher une école, email, téléphone, code" value="${esc(ST.q)}"></div><select id="f"><option value="">Tous les statuts</option>${Object.entries(SG.STATUS).map(([k, v]) => `<option value="${k}" ${ST.f === k ? 'selected' : ''}>${v[0]}</option>`).join('')}</select><button class="btn btn-ghost" data-a="csv">${ic('dl', 16)}Exporter CSV</button><button class="btn btn-ghost" data-a="refresh">${ic('refresh', 16)}Actualiser</button></div><div class="card flat"><div class="tw" id="list"></div></div>`;
     else if (ST.tab === 'prospects') body = prospectsBody();
+    else if (ST.tab === 'site') body = siteBody();
     else if (ST.tab === 'pays') { const all = DATA.subs; body = `<div class="card flat"><div class="tw">${all.length ? `<table class="tbl"><thead><tr><th>Date</th><th>École</th><th>Formule</th><th>Mode</th><th class="r">Montant</th><th>État</th><th></th></tr></thead><tbody>${all.map(x => `<tr><td>${fdate(x.date)}</td><td><b>${esc(x.schoolName)}</b></td><td>${esc(x.plan)} · ${x.months} mois</td><td>${esc(x.method)}${x.ref ? '<br><small class="muted">' + esc(x.ref) + '</small>' : ''}</td><td class="r"><b>${money(x.amount)}</b></td><td>${badge(x.status, x.status === 'validé' ? 'ok' : 'bad')}</td><td class="r">${x.status === 'validé' ? `<button class="btn btn-danger btn-sm" data-a="refund" data-id="${x.id}">Annuler</button>` : ''}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucun paiement</h4><p>Enregistrez un paiement depuis la liste des écoles.</p></div>'}</div></div>`; }
     else if (ST.tab === 'logs') body = `<div class="card"><div class="cb" style="padding-top:6px;padding-bottom:6px">${DATA.logs.map(x => `<div class="row"><span>${esc(x.m)}</span><small class="muted nowrap">${new Date(x.tMs).toLocaleString('fr-FR')}</small></div>`).join('') || '<div class="empty"><h4>Journal vide</h4></div>'}</div></div>`;
-    else body = `<div class="g2"><div class="card"><div class="ch"><h3>Tarifs et essai</h3><button class="btn btn-primary btn-sm" data-a="plans">Modifier</button></div><div class="cb"><div class="row"><span>Durée de l'essai</span><b>${g.trialDays} jours</b></div>${g.plans.map(p => `<div class="row"><span>${esc(p.name)}</span><b>${money(p.price)} / ${p.months} mois</b></div>`).join('')}<div class="row"><span>WhatsApp</span><b>${esc(g.contactWa)}</b></div></div></div>
+    else body = `<div class="g2"><div class="card"><div class="ch"><h3>Tarifs et essai</h3><button class="btn btn-primary btn-sm" data-a="plans">Modifier</button></div><div class="cb"><div class="row"><span>Durée de l'essai</span><b>${g.trialDays} jours</b></div>${g.plans.map(p => `<div class="row"><span>${esc(p.name)}</span><b>${SG.planPrice(p)}${SG.planOnRequest(p) ? '' : ' / ' + (p.months >= 600 ? 'paiement unique' : p.months + ' mois')}</b></div>`).join('')}<div class="row"><span>WhatsApp</span><b>${esc(g.contactWa)}</b></div></div></div>
       <div class="card"><div class="ch"><h3>Annonce globale</h3><button class="btn btn-primary btn-sm" data-a="announce">Modifier</button></div><div class="cb"><p>${esc(g.announcement) || '<span class="muted">Aucune annonce.</span>'}</p></div></div>
       <div class="card"><div class="ch"><h3>Compte administrateur</h3></div><div class="cb"><dl class="kv"><dt>Connecté</dt><dd>${esc((SG.user && SG.user.email) || '')}</dd></dl><p class="small muted" style="margin-top:10px">Seul l'email défini dans <span class="code">js/config.js</span> et <span class="code">firestore.rules</span> a accès à ce panneau.</p></div></div>
       <div class="card" style="grid-column:1/-1"><div class="ch"><h3>Message aux écoles</h3></div><div class="cb"><form class="frm" id="f-msg" novalidate><div class="fld"><label>Destinataire</label><select name="target"><option value="all">Toutes les écoles (${DATA.schools.length})</option>${DATA.schools.slice().sort((a, b) => a.name.localeCompare(b.name)).map(s => `<option value="${esc(s.id)}">${esc(s.name)} · ${esc(s.city || s.email)}</option>`).join('')}</select></div><div class="fld"><label>Titre</label><input type="text" name="title" maxlength="120" placeholder="Ex : Nouvelle fonctionnalité disponible"></div><div class="fld"><label>Message</label><textarea name="body" rows="4" maxlength="2000" placeholder="Votre message : les directeurs le verront dans leur espace, avec une pastille sur la cloche."></textarea></div><div class="fld"><button class="btn btn-primary" data-a="sendMsg" type="button">Envoyer le message</button></div></form>
@@ -220,7 +259,7 @@
     if (liveOff) liveOff();
     liveOff = SG.watchSchools(l => {
       DATA.schools = l; clearTimeout(liveT);
-      liveT = setTimeout(() => { if (!$('view') || document.querySelector('.ov') || /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) return; render(); }, 250);
+      liveT = setTimeout(() => { if (!$('view') || ST.tab === 'site' || document.querySelector('.ov') || /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) return; render(); }, 250);
     });
   }
   boot();

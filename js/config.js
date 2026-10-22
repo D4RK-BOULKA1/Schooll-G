@@ -11,7 +11,8 @@ window.SG_CONFIG = {
   plans: [
     { id: 'mensuel', name: 'Mensuel', price: 25000, months: 1, desc: 'Sans engagement, résiliable à tout moment' },
     { id: 'trimestriel', name: 'Trimestriel', price: 70000, months: 3, desc: 'Un trimestre scolaire complet' },
-    { id: 'annuel', name: 'Annuel', price: 250000, months: 12, desc: 'Toute l\'année scolaire, deux mois offerts' }
+    { id: 'annuel', name: 'Annuel', price: 250000, months: 12, desc: 'Toute l\'année scolaire, deux mois offerts' },
+    { id: 'unique', name: 'Paiement unique', price: null, months: 1200, desc: 'Vous payez une seule fois, sans renouvellement' }
   ],
   /* Configuration web Firebase (publique par conception : la sécurité vient des règles Firestore). */
   firebase: {
