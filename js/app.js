@@ -169,6 +169,7 @@
     const [, name, arg] = (location.hash || '#/dashboard').split('/');
     const key = A.views[name] ? name : 'dashboard';
     A.ST._r = null;
+    if (SG._ro && key === 'settings') { document.getElementById('ttl').textContent = TITLES[key] || ''; return A.view(A.empty('Accès interdit par l\'administrateur', 'Les coordonnées de l\'école ne sont pas visibles en lecture seule.')); }
     document.querySelectorAll('.side a.it').forEach(a => a.classList.toggle('on', a.dataset.k === (key === 'student' ? 'students' : key)));
     document.getElementById('ttl').textContent = TITLES[key] || '';
     window.scrollTo(0, 0);
