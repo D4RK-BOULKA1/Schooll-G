@@ -129,6 +129,12 @@
     <div class="card"><div class="ch"><h3>Parrainages (${R.length})</h3></div><div class="tw">${R.length ? `<table class="tbl"><thead><tr><th>Filleule</th><th>Marraine</th><th>Statut du filleul</th><th></th></tr></thead><tbody>${R.map(({ r, filleul, marraine }) => `<tr><td><b>${esc(r.name)}</b><br><small class="muted">${fdate(new Date(r.createdAtMs).toISOString())}</small></td><td>${marraine ? esc(marraine.name) : '<span class="muted">Code ' + esc(r.code) + '</span>'}</td><td>${filleul ? badge(SG.STATUS[SG.status(filleul)][0], SG.STATUS[SG.status(filleul)][1]) : ''}</td><td>${r.rewarded ? badge('1 mois offert', 'ok') : filleul && marraine ? `<button class="btn btn-primary btn-sm" data-a="grant" data-id="${r.id}">Offrir 1 mois au parrain</button>` : ''}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucun parrainage</h4></div>'}</div></div>`;
   }
 
+  /* ---------- modifier le site en direct (verrouillé par un second code) ---------- */
+  function askSiteCode(then) {
+    const m = UI.modal({ title: 'Modifier le site en live', size: 'sm', body: `<div style="text-align:center;margin-bottom:12px;color:var(--orange-d)">${ic('lock', 28)}</div><p style="margin-bottom:12px">Cette section est protégée. Saisissez le code à 4 chiffres.</p><div id="sce" style="display:none;background:var(--red-s);color:var(--red);padding:10px 12px;border-radius:6px;font-size:14px;margin-bottom:12px"></div><form id="scf" class="frm"><div class="fld"><input type="password" name="c" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="Code" style="text-align:center;letter-spacing:.4em;font-size:20px"></div><div class="fld"><button class="btn btn-navy btn-lg" style="width:100%">Déverrouiller</button></div></form>`, actions: [] });
+    const f = m.el.querySelector('#scf'); setTimeout(() => f.c.focus(), 50);
+    f.onsubmit = async e => { e.preventDefault(); const r = await SG.checkSiteCode(f.c.value); if (r === true) { m.close(); if (then) return then(); ST.tab = 'site'; render(); await loadSiteTab(); render(); } else { const x = m.el.querySelector('#sce'); x.textContent = r; x.style.display = 'block'; f.c.value = ''; f.c.focus(); } };
+  }
   /* ---------- modifier le site en direct ---------- */
   const KIND = { H1: 'Titre principal', H2: 'Titre', H3: 'Sous-titre', H4: 'Sous-titre', P: 'Paragraphe', A: 'Bouton ou lien', BUTTON: 'Bouton', LI: 'Liste', SUMMARY: 'Question', SPAN: 'Texte', B: 'Texte', SMALL: 'Texte', DIV: 'Texte' };
   const flat = h => String(h == null ? '' : h).replace(/\s+/g, ' ').trim();
@@ -159,7 +165,9 @@
     <div style="position:sticky;bottom:0;background:var(--bg,#fff);padding:12px 0;display:flex;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line2)"><button class="btn btn-primary btn-lg" data-a="sitePublish">Publier les modifications</button><a class="btn btn-ghost btn-lg" href="index.html" target="_blank" rel="noopener">Voir le site</a></div>`;
   }
   A.siteReset = k => { const t = document.querySelector('textarea[data-k="' + k + '"]'); if (t && ST.site) t.value = ST.site.defs[k] || ''; };
+  A.unlockSite = () => askSiteCode();
   A.sitePublish = async () => {
+    if (!SG.siteCodeOk()) return askSiteCode();
     const S = ST.site; if (!S) return; const texts = {}, hidden = {};
     document.querySelectorAll('textarea[data-k]').forEach(t => { const v = t.value.trim(); if (v && flat(v) !== S.defs[t.dataset.k]) texts[t.dataset.k] = v; });
     document.querySelectorAll('input[data-h]').forEach(c => { if (!c.checked) hidden[c.dataset.h] = true; });
@@ -177,10 +185,10 @@
 
   document.addEventListener('click', async e => {
     const el = e.target.closest('[data-a]'); if (!el) return; const a = el.dataset.a;
-    if (a === 'tab') { e.preventDefault(); ST.tab = el.dataset.id; if (ST.tab === 'logs') await load('logs'); if (ST.tab === 'settings') await load('msgs'); if (ST.tab === 'site') { render(); await loadSiteTab(); } render(); return; }
+    if (a === 'tab') { e.preventDefault(); if (ST.tab === 'site' && el.dataset.id !== 'site') SG.siteCodeClear(); if (el.dataset.id === 'site' && !SG.siteCodeOk()) return askSiteCode(); ST.tab = el.dataset.id; if (ST.tab === 'logs') await load('logs'); if (ST.tab === 'settings') await load('msgs'); if (ST.tab === 'site') { render(); await loadSiteTab(); } render(); return; }
     if (a === 'logout') { e.preventDefault(); await SG.logout(); loginView(); return; }
     if (a === 'csv') return exportCsv();
-    if (a === 'plans') return plansModal();
+    if (a === 'plans') return SG.siteCodeOk() ? plansModal() : askSiteCode(plansModal);
     if (a === 'announce') return announceModal();
     if (a === 'refresh') { await load(); render(); return; }
     const f = A[a]; if (f) f(el.dataset.id);
@@ -223,7 +231,7 @@
       <div class="card"><div class="ch"><h3>Dernières inscriptions</h3><button class="btn btn-ghost btn-sm" data-a="tab" data-id="schools">Tout voir</button></div><div class="tw">${S.sch.length ? `<table class="tbl"><tbody>${S.sch.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 6).map(s => `<tr><td><b>${esc(s.name)}</b><br><small class="muted">${esc(s.email)}</small></td><td>${badge(SG.STATUS[SG.status(s)][0], SG.STATUS[SG.status(s)][1])}</td><td>${fdate(s.createdAt)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucune école pour l\'instant</h4><p>Les inscriptions à l\'essai gratuit apparaîtront ici.</p></div>'}</div></div>`;
     else if (ST.tab === 'schools') body = `<div class="tools"><div class="sr">${ic('search', 16)}<input type="search" id="q" placeholder="Rechercher une école, email, téléphone, code" value="${esc(ST.q)}"></div><select id="f"><option value="">Tous les statuts</option>${Object.entries(SG.STATUS).map(([k, v]) => `<option value="${k}" ${ST.f === k ? 'selected' : ''}>${v[0]}</option>`).join('')}</select><button class="btn btn-ghost" data-a="csv">${ic('dl', 16)}Exporter CSV</button><button class="btn btn-ghost" data-a="refresh">${ic('refresh', 16)}Actualiser</button></div><div class="card flat"><div class="tw" id="list"></div></div>`;
     else if (ST.tab === 'prospects') body = prospectsBody();
-    else if (ST.tab === 'site') body = siteBody();
+    else if (ST.tab === 'site') body = SG.siteCodeOk() ? siteBody() : `<div class="card"><div class="cb"><p>Section verrouillée.</p><button class="btn btn-navy" data-a="unlockSite">Saisir le code</button></div></div>`;
     else if (ST.tab === 'pays') { const all = DATA.subs; body = `<div class="card flat"><div class="tw">${all.length ? `<table class="tbl"><thead><tr><th>Date</th><th>École</th><th>Formule</th><th>Mode</th><th class="r">Montant</th><th>État</th><th></th></tr></thead><tbody>${all.map(x => `<tr><td>${fdate(x.date)}</td><td><b>${esc(x.schoolName)}</b></td><td>${esc(x.plan)} · ${x.months} mois</td><td>${esc(x.method)}${x.ref ? '<br><small class="muted">' + esc(x.ref) + '</small>' : ''}</td><td class="r"><b>${money(x.amount)}</b></td><td>${badge(x.status, x.status === 'validé' ? 'ok' : 'bad')}</td><td class="r">${x.status === 'validé' ? `<button class="btn btn-danger btn-sm" data-a="refund" data-id="${x.id}">Annuler</button>` : ''}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucun paiement</h4><p>Enregistrez un paiement depuis la liste des écoles.</p></div>'}</div></div>`; }
     else if (ST.tab === 'logs') body = `<div class="card"><div class="cb" style="padding-top:6px;padding-bottom:6px">${DATA.logs.map(x => `<div class="row"><span>${esc(x.m)}</span><small class="muted nowrap">${new Date(x.tMs).toLocaleString('fr-FR')}</small></div>`).join('') || '<div class="empty"><h4>Journal vide</h4></div>'}</div></div>`;
     else body = `<div class="g2"><div class="card"><div class="ch"><h3>Tarifs et essai</h3><button class="btn btn-primary btn-sm" data-a="plans">Modifier</button></div><div class="cb"><div class="row"><span>Durée de l'essai</span><b>${g.trialDays} jours</b></div>${g.plans.map(p => `<div class="row"><span>${esc(p.name)}</span><b>${SG.planPrice(p)}${SG.planOnRequest(p) ? '' : ' / ' + (p.months >= 600 ? 'paiement unique' : p.months + ' mois')}</b></div>`).join('')}<div class="row"><span>WhatsApp</span><b>${esc(g.contactWa)}</b></div></div></div>

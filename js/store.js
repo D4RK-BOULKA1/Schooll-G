@@ -74,7 +74,7 @@
   };
   SG.resetPassword = email => auth.sendPasswordResetEmail(String(email).trim());
   SG.sendVerification = () => SG.user.sendEmailVerification();
-  SG.logout = async () => { SG.adminCodeClear(); SG.stopWatch(); try { await SG.flushAll(); } catch (e) { } await auth.signOut(); };
+  SG.logout = async () => { SG.adminCodeClear(); SG.siteCodeClear(); SG.stopWatch(); try { await SG.flushAll(); } catch (e) { } await auth.signOut(); };
   SG.changePassword = async (oldPw, newPw) => {
     const u = SG.user; await u.reauthenticateWithCredential(fb.auth.EmailAuthProvider.credential(u.email, oldPw)); await u.updatePassword(newPw);
   };
@@ -290,6 +290,16 @@
     if (await SG.hash(String(code || '')) === SG_CONFIG.adminCodeHash) { _fails = 0; try { sessionStorage.setItem(AK, '1'); } catch (e) { } return true; }
     if (++_fails >= 5) { _fails = 0; _until = Date.now() + 60000; return 'Code incorrect. Trop d\'essais : attendez une minute.'; }
     return 'Code d\'accès incorrect.';
+  };
+  /* Second code (4 chiffres) pour « Modifier le site en live » : redemandé à chaque ouverture de l'onglet. */
+  const SK = 'sg_site_ok'; let _sf = 0, _su = 0;
+  SG.siteCodeOk = () => { try { return sessionStorage.getItem(SK) === '1'; } catch (e) { return false; } };
+  SG.siteCodeClear = () => { try { sessionStorage.removeItem(SK); } catch (e) { } };
+  SG.checkSiteCode = async code => {
+    if (Date.now() < _su) return 'Trop d\'essais. Réessayez dans ' + Math.ceil((_su - Date.now()) / 1000) + ' secondes.';
+    if (await SG.hash(String(code || '').trim()) === SG_CONFIG.siteCodeHash) { _sf = 0; try { sessionStorage.setItem(SK, '1'); } catch (e) { } return true; }
+    if (++_sf >= 3) { _sf = 0; _su = Date.now() + 120000; return 'Code incorrect. Trop d\'essais : attendez 2 minutes.'; }
+    return 'Code incorrect.';
   };
   SG.sendReset = email => SG.resetPassword(email);
 })();

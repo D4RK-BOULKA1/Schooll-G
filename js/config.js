@@ -7,6 +7,8 @@ window.SG_CONFIG = {
   adminEmail: 'boulkassoum11@gmail.com',
   /* Empreinte (SHA-256) du code d'accès au panel admin : le code lui-même n'est pas écrit ici. */
   adminCodeHash: '814339de922565623174317409a61c8bfc30921e2fc5e0a447e1804fd61ad1e6',
+  /* Empreinte (SHA-256) du code à 4 chiffres qui verrouille « Modifier le site en live » (différent du code du panel). */
+  siteCodeHash: 'b3d5863dd1744a2f767c5f46b6b7b159ace2c9f7cc968b89c342144e3adf0f93',
   contact: { whatsapp: '22384322866', email: 'boulkassoum11@gmail.com' },
   plans: [
     { id: 'mensuel', name: 'Mensuel', price: 25000, months: 1, desc: 'Sans engagement, résiliable à tout moment' },
