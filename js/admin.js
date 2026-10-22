@@ -61,12 +61,16 @@
   };
 
   /* ---------- actions ---------- */
-  /* Pour les administrateurs invités : emails et numéros masqués (étoiles), bouton œil refusé. */
-  const maskEmail = (e, force) => { e = String(e || ''); if (!e || (SG.isAdmin() && !force)) return e; const l = e.split('@')[0], t = (e.split('@')[1] || '').split('.').pop(); return (l[0] || '') + '*****@*****' + (t ? '.' + t : ''); };
-  const maskPhone = (p, force) => { p = String(p || ''); if (!p || (SG.isAdmin() && !force)) return p; return '** ** ** **'; };
-  const eye = () => `<button type="button" data-a="reveal" title="Afficher" aria-label="Afficher" style="background:none;border:0;padding:0 0 0 6px;color:var(--mute);cursor:pointer;vertical-align:middle">${ic('eye', 15)}</button>`;
-  const cEmail = s => SG.isAdmin() ? esc(s.email) : (s.email ? `<span>${esc(maskEmail(s.email))}</span>${eye()}` : '');
-  const cPhone = s => SG.isAdmin() ? esc(s.phone) : (s.phone ? `<span>${esc(maskPhone(s.phone))}</span>${eye()}` : '');
+  /* Emails et numéros masqués par défaut (étoiles), pour tout le monde. Bouton œil : l'administrateur principal peut afficher
+     (puis re-masquer) ; un administrateur invité reçoit « Accès interdit ». Tout se re-masque seul après 30 secondes. */
+  const maskEmail = e => { e = String(e || ''); if (!e) return e; const l = e.split('@')[0], t = (e.split('@')[1] || '').split('.').pop(); return (l[0] || '') + '*****@*****' + (t ? '.' + t : ''); };
+  const maskPhone = p => String(p || '') ? '** ** ** **' : '';
+  const MK = { shown: new Set(), vals: {}, timer: null };
+  const eyeBtn = (k, on) => `<button type="button" data-a="reveal" data-id="${k}" title="${on ? 'Masquer' : 'Afficher'}" aria-label="${on ? 'Masquer' : 'Afficher'}" style="background:none;border:0;padding:0 0 0 6px;color:var(--mute);cursor:pointer;vertical-align:middle">${ic(on ? 'eyeoff' : 'eye', 15)}</button>`;
+  const mkCell = (kind, s, val, fn) => { if (!val) return ''; const k = kind + ':' + s.id; MK.vals[k] = [val, fn]; const on = SG.isAdmin() && MK.shown.has(k); return `<span data-mk="${k}">${esc(on ? val : fn(val))}</span>${eyeBtn(k, on)}`; };
+  const cEmail = s => mkCell('e', s, s.email, maskEmail);
+  const cPhone = s => mkCell('p', s, s.phone, maskPhone);
+  const paintMasks = () => document.querySelectorAll('[data-mk]').forEach(sp => { const k = sp.dataset.mk, v = MK.vals[k]; if (!v) return; const on = MK.shown.has(k); sp.textContent = on ? v[0] : v[1](v[0]); const b = sp.nextElementSibling; if (b && b.dataset.a === 'reveal') b.innerHTML = ic(on ? 'eyeoff' : 'eye', 15); });
   const A = {};
   const run = async (fn, okMsg) => { try { await fn(); await load('schools'); if (okMsg) UI.toast(okMsg, 'ok'); render(); } catch (e) { UI.toast(SG.errMsg(e), 'err'); } };
   const byId = id => DATA.schools.find(s => s.id === id);
@@ -92,7 +96,7 @@
       onSubmit: v => run(async () => { await SG.updateSchool(id, { name: v.name, director: v.director, phone: v.phone, city: v.city, plan: v.plan, notes: v.notes, trialEnd: v.trialEnd ? new Date(v.trialEnd + 'T23:59:00').toISOString() : s.trialEnd, paidUntil: v.paidUntil ? new Date(v.paidUntil + 'T23:59:00').toISOString() : null }); SG.log('Modification : ' + v.name); }, 'École modifiée.')
     });
   };
-  A.reset = id => { const s = byId(id); UI.confirm(`Envoyer un email de réinitialisation du mot de passe à <b>${cEmail(s)}</b> ?`, () => SG.resetPassword(s.email).then(() => UI.toast('Email envoyé.', 'ok')).catch(e => UI.toast(SG.errMsg(e), 'err')), { yes: 'Envoyer' }); };
+  A.reset = id => { const s = byId(id); UI.confirm(`Envoyer un email de réinitialisation du mot de passe à <b>${esc(maskEmail(s.email))}</b> ?`, () => SG.resetPassword(s.email).then(() => UI.toast('Email envoyé.', 'ok')).catch(e => UI.toast(SG.errMsg(e), 'err')), { yes: 'Envoyer' }); };
   A.detail = id => {
     const s = byId(id), st = SG.status(s), subs = DATA.subs.filter(x => x.schoolId === id), k = s.stats || {};
     UI.modal({
@@ -200,6 +204,10 @@
     try { await SG.saveSite({ texts, hidden }); ST.siteCur = { texts, hidden }; SG.log('Site modifié (' + Object.keys(texts).length + ' texte(s))'); UI.toast('Site mis à jour : les visiteurs le voient déjà.', 'ok'); } catch (e) { UI.toast(SG.errMsg(e), 'err'); }
   };
 
+  A.reveal = k => {
+    if (MK.shown.has(k)) MK.shown.delete(k); else MK.shown.add(k);
+    paintMasks(); clearTimeout(MK.timer); if (MK.shown.size) MK.timer = setTimeout(() => { MK.shown.clear(); paintMasks(); }, 30000);
+  };
   A.sendMsg = async () => {
     const f = $('f-msg'), v = UI.read(f); if (!v.title.trim() || !v.body.trim()) return UI.toast('Renseignez le titre et le message.', 'err');
     const sc = v.target === 'all' ? null : byId(v.target);
@@ -232,7 +240,7 @@
     });
   }
   function announceModal() { const g = SG.global(); UI.formModal({ title: 'Annonce affichée à toutes les écoles', fields: [{ name: 'a', label: 'Message (vide pour retirer)', type: 'textarea', rows: 3, def: g.announcement }], onSubmit: v => SG.setGlobal({ announcement: v.a.trim() }).then(() => { UI.toast('Annonce mise à jour.', 'ok'); render(); }).catch(x => UI.toast(SG.errMsg(x), 'err')) }); }
-  function exportCsv() { UI.csv('ecoles-school-g.csv', [['École', 'Directeur', 'Email', 'Téléphone', 'Ville', 'Statut', 'Formule', 'Inscrit le', 'Fin essai', 'Abonné jusqu\'au', 'Élèves'], ...DATA.schools.map(s => [s.name, s.director, maskEmail(s.email), maskPhone(s.phone), s.city, SG.STATUS[SG.status(s)][0], s.plan, fdate(s.createdAt), fdate(s.trialEnd), fdate(s.paidUntil), (s.stats && s.stats.students) || 0])]); }
+  function exportCsv() { UI.csv('ecoles-school-g.csv', [['École', 'Directeur', 'Email', 'Téléphone', 'Ville', 'Statut', 'Formule', 'Inscrit le', 'Fin essai', 'Abonné jusqu\'au', 'Élèves'], ...DATA.schools.map(s => [s.name, s.director, SG.isAdmin() ? s.email : maskEmail(s.email), SG.isAdmin() ? s.phone : maskPhone(s.phone), s.city, SG.STATUS[SG.status(s)][0], s.plan, fdate(s.createdAt), fdate(s.trialEnd), fdate(s.paidUntil), (s.stats && s.stats.students) || 0])]); }
 
   /* ---------- rendu ---------- */
   function rows() {
