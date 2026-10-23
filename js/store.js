@@ -45,6 +45,18 @@
   /* Écoute en direct : la fiche de l'école (statut, abonnement) et la configuration globale (annonce, tarifs). */
   SG.watchGlobal = cb => db.collection('global').doc('config').onSnapshot(d => { if (d.exists) { Object.assign(SG._global, d.data()); } fixPlans(); cb && cb(SG._global); }, () => { });
   SG.setGlobal = async o => { await db.collection('global').doc('config').set(o, { merge: true }); Object.assign(SG._global, o); };
+  /* Compteur de visites de la page d'accueil (sans connexion) : une visite par session de navigateur, un visiteur unique par navigateur.
+     Les appareils de l'administration ne sont pas comptés. Stockage : un document par jour dans vstats. */
+  SG.trackVisit = () => {
+    try {
+      if (!db || localStorage.getItem('sg_nocount') || /[?&]nocount/.test(location.search) || sessionStorage.getItem('sg_v')) return;
+      sessionStorage.setItem('sg_v', '1');
+      const isNew = !localStorage.getItem('sg_vid'); if (isNew) localStorage.setItem('sg_vid', String(Date.now()));
+      const inc = n => fb.firestore.FieldValue.increment(n), day = new Date().toISOString().slice(0, 10);
+      db.collection('vstats').doc(day).set({ day, n: inc(1), u: inc(isNew ? 1 : 0) }, { merge: true }).catch(() => { });
+    } catch (e) { }
+  };
+  SG.visits = async () => { const snap = await db.collection('vstats').get(); const l = []; snap.forEach(d => { const x = d.data(); l.push({ day: x.day || d.id, n: +x.n || 0, u: +x.u || 0 }); }); return l.sort((a, b) => a.day.localeCompare(b.day)); };
   /* Contenu modifiable de la page d'accueil (global/site) : textes par identifiant et sections masquées. */
   const siteCache = () => { try { return JSON.parse(localStorage.getItem('sg_site') || 'null'); } catch (e) { return null; } };
   SG._site = siteCache() || { texts: {}, hidden: {} };

@@ -129,6 +129,17 @@ service cloud.firestore {
     match /subs/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
     match /logs/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
 
+    // Compteur de visites de la page d'accueil : n'importe qui peut ajouter 1 (jamais plus), seul le personnel lit
+    match /vstats/{day} {
+      allow read: if isStaff();
+      allow create: if request.resource.data.keys().hasOnly(['day', 'n', 'u'])
+        && request.resource.data.n == 1 && request.resource.data.u in [0, 1] && request.resource.data.day == day;
+      allow update: if request.resource.data.keys().hasOnly(['day', 'n', 'u'])
+        && request.resource.data.n == resource.data.n + 1
+        && request.resource.data.u in [resource.data.u, resource.data.u + 1];
+      allow delete: if isAdmin();
+    }
+
     // Administrateurs invités (lecture seule) : seul l'administrateur principal les gère ; chacun peut lire sa propre fiche
     match /admins/{email} {
       allow read: if isAdmin() || (signedIn() && request.auth.token.email.lower() == email);

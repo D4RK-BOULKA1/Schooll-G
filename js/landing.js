@@ -39,7 +39,7 @@
     const md = document.querySelector('meta[name=description]'); if (md && T['meta-desc']) md.setAttribute('content', String(T['meta-desc']));
   }
 
-  render(); applySite(SG.site());
+  render(); applySite(SG.site()); if (SG.trackVisit) SG.trackVisit();
   const start = () => {
     try { SG.watchGlobal(render); SG.watchSite(applySite); } catch (e) { }
   };

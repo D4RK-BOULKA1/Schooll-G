@@ -7,7 +7,7 @@
   const ST = { q: '', f: '', tab: 'dash' };
   const RO_TABS = new Set(['site', 'admins', 'settings']);
   const RO_OK = new Set(['tab', 'logout', 'csv', 'refresh', 'view', 'detail']);
-  const DATA = { schools: [], subs: [], logs: [], msgs: [], refs: [], admins: [] };
+  const DATA = { schools: [], subs: [], logs: [], msgs: [], refs: [], admins: [], visits: [] };
   const $ = id => document.getElementById(id);
   const G = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
 
@@ -44,6 +44,7 @@
   async function load(what) {
     if (!what || what === 'schools') DATA.schools = await SG.schools();
     if (!what || what === 'subs') DATA.subs = await SG.subs().catch(() => []);
+    if (!what || what === 'visits') DATA.visits = await SG.visits().catch(() => []);
     if (!what || what === 'refs') DATA.refs = await SG.allReferrals().catch(() => []);
     if (what === 'logs') DATA.logs = await SG.logs().catch(() => []);
     if (what === 'msgs') DATA.msgs = await SG.allMessages().catch(() => []);
@@ -59,6 +60,17 @@
       chart: months.map(m => ({ label: UI.MONTHS[+m.slice(5) - 1].slice(0, 4), v: [sch.filter(s => (s.createdAt || '').startsWith(m)).length, subs.filter(s => s.date.startsWith(m)).reduce((a, s) => a + s.amount, 0) / 1000] }))
     };
   };
+
+  /* ---------- visites du site ---------- */
+  function visitsHtml() {
+    const v = DATA.visits, by = {}; v.forEach(x => { by[x.day] = x; });
+    const iso = k => { const d = new Date(); d.setUTCDate(d.getUTCDate() - k); return d.toISOString().slice(0, 10); };
+    const sum = (k, f) => { let t = 0; for (let i = 0; i < k; i++) t += (by[iso(i)] || {})[f] || 0; return t; };
+    const tot = v.reduce((a, x) => a + x.n, 0), uni = v.reduce((a, x) => a + x.u, 0);
+    const chart = []; for (let i = 13; i >= 0; i--) { const d = iso(i), x = by[d] || { n: 0, u: 0 }; chart.push({ label: d.slice(8) + '/' + d.slice(5, 7), v: [x.n, x.u] }); }
+    return `<div class="kpis"><div class="kpi o"><small>Visites aujourd'hui</small><b>${sum(1, 'n')}</b><span>${sum(1, 'u')} nouveau(x) visiteur(s)</span></div><div class="kpi"><small>Visites sur 7 jours</small><b>${sum(7, 'n')}</b><span>${sum(7, 'u')} visiteur(s) uniques</span></div><div class="kpi"><small>Visites sur 30 jours</small><b>${sum(30, 'n')}</b><span>${sum(30, 'u')} visiteur(s) uniques</span></div><div class="kpi g"><small>Visites totales du site</small><b>${tot}</b><span>${uni} visiteur(s) uniques</span></div></div>
+    <div class="card" style="margin-bottom:20px"><div class="ch"><h3>Visites du site sur 14 jours (barre orange : visites, barre marine : nouveaux visiteurs)</h3></div><div class="cb">${tot ? UI.bars(chart, { h: 150 }) : '<p class="muted small">Aucune visite enregistrée pour le moment. Le compteur démarre avec la page d\'accueil publique, sans connexion requise.</p>'}</div></div>`;
+  }
 
   /* ---------- actions ---------- */
   /* Emails et numéros masqués par défaut (étoiles), pour tout le monde. Bouton œil : l'administrateur principal peut afficher
@@ -268,6 +280,7 @@
     if (!nav.some(n => n[0] === ST.tab)) ST.tab = 'dash';
     if (ST.tab === 'dash') body = `<div class="kpis"><div class="kpi"><small>Écoles inscrites</small><b>${S.sch.length}</b><span>${S.students} élève(s) au total</span></div><div class="kpi g"><small>Abonnées actives</small><b>${S.by.active}</b><span>Conversion : ${S.conv} %</span></div><div class="kpi o"><small>En essai gratuit</small><b>${S.by.trial}</b><span>${S.by.expired} essai(s) expiré(s)</span></div><div class="kpi r"><small>Bloquées ou bannies</small><b>${S.by.blocked + S.by.banned}</b></div></div>
       <div class="kpis"><div class="kpi g"><small>Revenus du mois</small><b>${money(S.month)}</b></div><div class="kpi"><small>Revenus totaux</small><b>${money(S.total)}</b></div><div class="kpi o"><small>Paiements validés</small><b>${S.subs.length}</b></div><div class="kpi"><small>Prix moyen</small><b>${money(S.subs.length ? S.total / S.subs.length : 0)}</b></div></div>
+      ${visitsHtml()}
       <div class="g21" style="margin-bottom:20px"><div class="card"><div class="ch"><h3>Inscriptions (barre orange) et revenus en milliers de FCFA (barre marine)</h3></div><div class="cb">${UI.bars(S.chart, { h: 190 })}</div></div>
       <div class="card"><div class="ch"><h3>Répartition</h3></div><div class="cb">${[['Abonnées', S.by.active, 'ok'], ['En essai', S.by.trial, 'info'], ['Expirées', S.by.expired, 'warn'], ['Bloquées', S.by.blocked, 'bad'], ['Bannies', S.by.banned, 'bad']].map(([l, n, k]) => `<div class="row"><span>${l}</span>${badge(n, k)}</div>`).join('')}</div></div></div>
       <div class="card"><div class="ch"><h3>Dernières inscriptions</h3><button class="btn btn-ghost btn-sm" data-a="tab" data-id="schools">Tout voir</button></div><div class="tw">${S.sch.length ? `<table class="tbl"><tbody>${S.sch.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 6).map(s => `<tr><td><b>${esc(s.name)}</b><br><small class="muted">${cEmail(s)}</small></td><td>${badge(SG.STATUS[SG.status(s)][0], SG.STATUS[SG.status(s)][1])}</td><td>${fdate(s.createdAt)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucune école pour l\'instant</h4><p>Les inscriptions à l\'essai gratuit apparaîtront ici.</p></div>'}</div></div>`;
@@ -299,7 +312,8 @@
     const ld = UI.loading(root, { name: 'School-G', sub: 'Administration', msg: 'Vérification de l\'accès…' });
     await SG.ready(); const u = SG.user; ld.set(60, 'Chargement des écoles…');
     if (!u) return loginView();
-    await SG.loadRole(); if (!SG.isStaff()) { await SG.logout(); return loginView('Ce compte n\'est pas administrateur.'); }
+    await SG.loadRole(); if (SG.isStaff()) { try { localStorage.setItem('sg_nocount', '1'); } catch (e) { } }
+    if (!SG.isStaff()) { await SG.logout(); return loginView('Ce compte n\'est pas administrateur.'); }
     if (SG.isAdmin() && !SG.adminCodeOk()) return codeView();
     try { await load(); } catch (e) { return loginView('Lecture impossible : ' + SG.errMsg(e) + ' Vérifiez les règles Firestore et l\'email administrateur.'); }
     render(); liveStart();
