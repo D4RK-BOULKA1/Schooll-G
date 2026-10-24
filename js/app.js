@@ -242,8 +242,9 @@
       A.drawBanners(); if (st === 'active' && was !== 'active') UI.toast('Votre abonnement est activé. Merci !', 'ok');
     });
     const u2 = SG.watchGlobal(() => { if (!locked) A.drawBanners(); });
+    const u3 = (!sess.byAdmin && A.advStart) ? A.advStart(school0.id) : null;
     const tm = setInterval(() => { if (locked || sess.byAdmin) return; const st = SG.status(school0); if (st !== 'trial' && st !== 'active') goLock(st); else A.drawBanners(); }, 30000);
-    liveOff = () => { try { u1 && u1(); u2 && u2(); } catch (e) { } clearInterval(tm); };
+    liveOff = () => { try { u1 && u1(); u2 && u2(); u3 && u3(); } catch (e) { } clearInterval(tm); };
   }
 
   A.boot = async () => {

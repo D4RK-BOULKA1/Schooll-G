@@ -218,14 +218,15 @@
   async function sha(str) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
   SG.studentKey = (code, mat, pin) => sha('sg|' + String(code).trim().toUpperCase() + '|' + String(mat).trim().toUpperCase() + '|' + String(pin).trim().toUpperCase());
 
-  /* Espace enseignant : identifiant = matricule du professeur + code enseignant (même principe que le parent). */
-  SG.teacherKey = (code, mat, pin) => sha('sgt|' + String(code).trim().toUpperCase() + '|' + String(mat).trim().toUpperCase() + '|' + String(pin).trim().toUpperCase());
+  /* Espace enseignant : deux codes seulement, le code de l'école et le code personnel de l'enseignant. */
+  SG.teacherKey = (code, pin) => sha('sgt|' + String(code).trim().toUpperCase() + '|' + String(pin).trim().toUpperCase());
   function teacherPayload(D, t) {
     const tt = {}, ids = new Set(t.classes || []);
     D.classes.forEach(c => { const T = D.timetable[c.id] || {}; Object.keys(T).forEach(k => { if (T[k].teacherId === t.id) { tt[k] = { cls: c.name, subject: T[k].subject || '' }; ids.add(c.id); } }); });
     const classes = D.classes.filter(c => ids.has(c.id)).map(c => { const T = D.timetable[c.id] || {}; return { name: c.name, cycle: c.cycle || '', count: D.students.filter(s => s.classId === c.id && s.status !== 'radié').length, subjects: [...new Set(Object.keys(T).filter(k => T[k].teacherId === t.id && T[k].subject).map(k => T[k].subject))] }; });
     const sal = (D.salaries || []).filter(x => x.teacherId === t.id).map(x => ({ month: x.month, amount: x.amount, method: x.method || '', date: x.date, status: x.status }));
-    return { t: { name: t.name, subjects: t.subjects || '', contract: t.contract || '', hired: t.hired || '', salary: +t.salary || 0, matricule: t.matricule }, classes, tt, sal };
+    const adv = (D.advances || []).filter(x => x.teacherId === t.id).map(x => ({ reqId: x.reqId || '', month: x.month, amount: +x.amount || 0, date: x.date }));
+    return { t: { id: t.id, name: t.name, subjects: t.subjects || '', contract: t.contract || '', hired: t.hired || '', salary: +t.salary || 0, matricule: t.matricule }, classes, tt, sal, adv };
   }
   function studentPayload(D, s, rc) {
     const cl = D.classes.find(c => c.id === s.classId) || {}; const subs = D.subjects[s.classId] || []; const results = {};
@@ -252,7 +253,7 @@
     for (const key of Object.keys(pc.stu)) { if (!(key in cur)) { b.delete(db.collection('pstu').doc(key)); ops++; if (ops >= 400) await flushB(); } }
     /* enseignants */
     const curT = {};
-    for (const t of (D.teachers || [])) { if (!t.pin || !t.matricule) continue; curT[await SG.teacherKey(sch.code, t.matricule, t.pin)] = JSON.stringify(teacherPayload(D, t)); }
+    for (const t of (D.teachers || [])) { if (!t.pin) continue; curT[await SG.teacherKey(sch.code, t.pin)] = JSON.stringify(teacherPayload(D, t)); }
     const doneT = {};
     for (const key of Object.keys(curT)) { if (pc.tch[key] === curT[key]) continue; b.set(db.collection('ptea').doc(key), { ownerUid: sch.ownerUid || id, p: curT[key], updatedAtMs: Date.now() }); doneT[key] = curT[key]; if (++ops >= 400) await flushB(); }
     for (const key of Object.keys(pc.tch)) { if (!(key in curT)) { b.delete(db.collection('ptea').doc(key)); ops++; if (ops >= 400) await flushB(); } }
@@ -280,15 +281,25 @@
     const u2 = db.collection('pub').doc(sess.code).onSnapshot(d => { cur.p = d; emit(); }, e => cb(e));
     return () => { u1(); u2(); };
   };
-  SG.teacherLogin = async (code, mat, pin) => {
-    code = String(code).trim().toUpperCase(); const key = await SG.teacherKey(code, mat, pin);
+  SG.teacherLogin = async (code, pin) => {
+    code = String(code).trim().toUpperCase(); const key = await SG.teacherKey(code, pin);
     let sd, pd;
     try { [sd, pd] = await Promise.all([db.collection('ptea').doc(key).get(), db.collection('pub').doc(code).get()]); } catch (e) { throw new Error(SG.errMsg(e)); }
     if (!pd.exists) throw new Error('Code école introuvable.');
-    if (!sd.exists) throw new Error('Identifiant ou code enseignant incorrect.');
+    if (!sd.exists) throw new Error('Code enseignant incorrect.');
     const stt = SG.status(accessObj(pd.data().access)); if (stt !== 'active' && stt !== 'trial') throw new Error('Cet espace est momentanément indisponible. Contactez l\'école.');
     SG.wr('tsess', { code, key }); return { code, key };
   };
+  /* Avances sur salaire : l'enseignant crée une demande (adv), la direction l'accepte ou la refuse. */
+  SG.requestAdvance = async (sess, ownerUid, t, amount, note) => {
+    const ref = db.collection('adv').doc();
+    await ref.set({ ownerUid, key: sess.key, tid: t.id, tname: t.name, amount: +amount, note: String(note || '').slice(0, 300), month: new Date().toISOString().slice(0, 7), status: 'en attente', createdMs: Date.now() });
+    const ids = SG.rd('adv_' + sess.key, []); ids.push(ref.id); SG.wr('adv_' + sess.key, ids); return ref.id;
+  };
+  SG.myAdvIds = sess => SG.rd('adv_' + sess.key, []);
+  SG.watchAdvanceDoc = (id, cb) => db.collection('adv').doc(id).onSnapshot(d => cb(d.exists ? Object.assign({ id: d.id }, d.data()) : null), () => { });
+  SG.watchAdvances = (uid, cb) => db.collection('adv').where('ownerUid', '==', uid).onSnapshot(snap => { const l = []; snap.forEach(d => l.push(Object.assign({ id: d.id }, d.data()))); l.sort((a, b) => b.createdMs - a.createdMs); cb(l); }, () => cb([]));
+  SG.decideAdvance = (id, status) => db.collection('adv').doc(id).update({ status, decidedMs: Date.now() });
   SG.teacherSession = () => SG.rd('tsess', null);
   SG.teacherLogout = () => { try { localStorage.removeItem('sgv1_tsess'); } catch (e) { } };
   SG.watchTeacher = (sess, cb) => {

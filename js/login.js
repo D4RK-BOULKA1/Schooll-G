@@ -78,9 +78,9 @@
 
   $('f-teacher').addEventListener('submit', async e => {
     e.preventDefault(); const f = e.target, v = UI.read(f); err('teacher');
-    if (!v.code.trim() || !v.mat.trim() || !v.pin.trim()) return err('teacher', 'Renseignez les trois codes.');
+    if (!v.code.trim() || !v.pin.trim()) return err('teacher', 'Renseignez le code de l\'école et votre code enseignant.');
     busy(f, true);
-    try { await SG.teacherLogin(v.code, v.mat, v.pin); location.href = 'teacher.html'; } catch (x) { err('teacher', x.message); busy(f, false); }
+    try { await SG.teacherLogin(v.code, v.pin); location.href = 'teacher.html'; } catch (x) { err('teacher', x.message); busy(f, false); }
   });
 
   /* Lien de parrainage : ?ref=CODE pré-remplit le champ et ouvre l'inscription. */

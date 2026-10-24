@@ -120,6 +120,22 @@ service cloud.firestore {
       allow delete: if isAdmin() || isOwner(resource.data.ownerUid);
     }
 
+    // Demandes d'avance sur salaire : un enseignant (identifié par son dossier secret ptea) crée une demande ;
+    // la direction la lit et la décide ; la demande se lit par son identifiant aléatoire.
+    match /adv/{id} {
+      allow get: if true;
+      allow list: if isStaff() || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create: if request.resource.data.keys().hasOnly(['ownerUid', 'key', 'tid', 'tname', 'amount', 'note', 'month', 'status', 'createdMs'])
+        && request.resource.data.status == 'en attente'
+        && request.resource.data.amount is number && request.resource.data.amount > 0 && request.resource.data.amount <= 10000000
+        && request.resource.data.note is string && request.resource.data.note.size() <= 300
+        && exists(/databases/$(database)/documents/ptea/$(request.resource.data.key))
+        && get(/databases/$(database)/documents/ptea/$(request.resource.data.key)).data.ownerUid == request.resource.data.ownerUid;
+      allow update: if isAdmin()
+        || (isOwner(resource.data.ownerUid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedMs']));
+      allow delete: if isAdmin() || isOwner(resource.data.ownerUid);
+    }
+
     // Messages de l'administrateur : lisibles par l'école visée (ou par toutes), écriture réservée à l'admin
     match /msgs/{id} {
       allow read: if isStaff() || (signedIn() && resource.data.target in ['all', request.auth.uid]);

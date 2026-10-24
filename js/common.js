@@ -257,7 +257,7 @@
         slots: ['08:00-09:00', '09:00-10:00', '10:00-10:15', '10:15-11:15', '11:15-12:15', '15:00-16:00', '16:00-17:00'],
         ministry: "MINISTÈRE DE L'ÉDUCATION NATIONALE", academy: ''
       },
-      classes: [], students: [], teachers: [], payments: [], salaries: [], expenses: [], stock: [], moves: [],
+      classes: [], students: [], teachers: [], payments: [], salaries: [], advances: [], expenses: [], stock: [], moves: [],
       attendance: {}, subjects: {}, notes: {}, timetable: {}, notices: [], customTheme: null, counters: { receipt: 0, student: 0 }
     };
   };
