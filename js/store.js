@@ -5,6 +5,7 @@
      schools/{uid}/d/{cle__n}       données de l'école, découpées en blocs            (propriétaire + admin)
      pub/{codeEcole}                infos publiques pour les parents + accès          (lecture publique)
      pstu/{empreinte}               dossier d'un élève visible par son parent         (lecture par identifiant secret)
+     ptea/{empreinte}               dossier d'un enseignant visible par lui-même     (lecture par identifiant secret)
      subs/{id}, logs/{id}           abonnements payés et journal                      (admin)
 */
 (function () {
@@ -217,6 +218,15 @@
   async function sha(str) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
   SG.studentKey = (code, mat, pin) => sha('sg|' + String(code).trim().toUpperCase() + '|' + String(mat).trim().toUpperCase() + '|' + String(pin).trim().toUpperCase());
 
+  /* Espace enseignant : identifiant = matricule du professeur + code enseignant (même principe que le parent). */
+  SG.teacherKey = (code, mat, pin) => sha('sgt|' + String(code).trim().toUpperCase() + '|' + String(mat).trim().toUpperCase() + '|' + String(pin).trim().toUpperCase());
+  function teacherPayload(D, t) {
+    const tt = {}, ids = new Set(t.classes || []);
+    D.classes.forEach(c => { const T = D.timetable[c.id] || {}; Object.keys(T).forEach(k => { if (T[k].teacherId === t.id) { tt[k] = { cls: c.name, subject: T[k].subject || '' }; ids.add(c.id); } }); });
+    const classes = D.classes.filter(c => ids.has(c.id)).map(c => { const T = D.timetable[c.id] || {}; return { name: c.name, cycle: c.cycle || '', count: D.students.filter(s => s.classId === c.id && s.status !== 'radié').length, subjects: [...new Set(Object.keys(T).filter(k => T[k].teacherId === t.id && T[k].subject).map(k => T[k].subject))] }; });
+    const sal = (D.salaries || []).filter(x => x.teacherId === t.id).map(x => ({ month: x.month, amount: x.amount, method: x.method || '', date: x.date, status: x.status }));
+    return { t: { name: t.name, subjects: t.subjects || '', contract: t.contract || '', hired: t.hired || '', salary: +t.salary || 0, matricule: t.matricule }, classes, tt, sal };
+  }
   function studentPayload(D, s, rc) {
     const cl = D.classes.find(c => c.id === s.classId) || {}; const subs = D.subjects[s.classId] || []; const results = {};
     D.settings.periods.forEach(per => {
@@ -230,7 +240,7 @@
   }
 
   SG.publish = async (id, D, sch) => {
-    const s = S(id), S0 = D.settings, pc = s.pubCache || (s.pubCache = { pub: '', stu: {} });
+    const s = S(id), S0 = D.settings, pc = s.pubCache || (s.pubCache = { pub: '', stu: {}, tch: {} }); pc.tch = pc.tch || {};
     const pubSettings = { name: S0.name, address: S0.address, city: S0.city, phone: S0.phone, email: S0.email, logo: S0.logo, year: S0.year, motto: S0.motto, accent: S0.accent, tranches: S0.tranches, periods: S0.periods, days: S0.days, slots: S0.slots, ministry: S0.ministry, academy: S0.academy, cantinePrice: S0.cantinePrice };
     const settingsJson = JSON.stringify(pubSettings), noticesJson = JSON.stringify(D.notices.map(n => ({ id: n.id, title: n.title, body: n.body, target: n.target, priority: n.priority, date: n.date }))), themeJson = JSON.stringify(D.customTheme || null);
     const pk = settingsJson + '|' + noticesJson + '|' + themeJson;
@@ -240,7 +250,14 @@
     let b = db.batch(), ops = 0; const flushB = async () => { if (ops) { await b.commit(); b = db.batch(); ops = 0; } }; const done = {};
     for (const key of Object.keys(cur)) { if (pc.stu[key] === cur[key]) continue; b.set(db.collection('pstu').doc(key), { ownerUid: sch.ownerUid || id, p: cur[key], updatedAtMs: Date.now() }); done[key] = cur[key]; if (++ops >= 400) await flushB(); }
     for (const key of Object.keys(pc.stu)) { if (!(key in cur)) { b.delete(db.collection('pstu').doc(key)); ops++; if (ops >= 400) await flushB(); } }
+    /* enseignants */
+    const curT = {};
+    for (const t of (D.teachers || [])) { if (!t.pin || !t.matricule) continue; curT[await SG.teacherKey(sch.code, t.matricule, t.pin)] = JSON.stringify(teacherPayload(D, t)); }
+    const doneT = {};
+    for (const key of Object.keys(curT)) { if (pc.tch[key] === curT[key]) continue; b.set(db.collection('ptea').doc(key), { ownerUid: sch.ownerUid || id, p: curT[key], updatedAtMs: Date.now() }); doneT[key] = curT[key]; if (++ops >= 400) await flushB(); }
+    for (const key of Object.keys(pc.tch)) { if (!(key in curT)) { b.delete(db.collection('ptea').doc(key)); ops++; if (ops >= 400) await flushB(); } }
     await flushB();
+    Object.keys(doneT).forEach(k => { pc.tch[k] = doneT[k]; }); Object.keys(pc.tch).forEach(k => { if (!(k in curT)) delete pc.tch[k]; });
     Object.keys(done).forEach(k => { pc.stu[k] = done[k]; }); Object.keys(pc.stu).forEach(k => { if (!(k in cur)) delete pc.stu[k]; });
   };
 
@@ -260,6 +277,23 @@
   SG.watchParent = (sess, cb) => {
     const cur = {}; const emit = () => { if (cur.s && cur.p) cb(null, cur); };
     const u1 = db.collection('pstu').doc(sess.key).onSnapshot(d => { cur.s = d; if (!d.exists) return cb(new Error('gone')); emit(); }, e => cb(e));
+    const u2 = db.collection('pub').doc(sess.code).onSnapshot(d => { cur.p = d; emit(); }, e => cb(e));
+    return () => { u1(); u2(); };
+  };
+  SG.teacherLogin = async (code, mat, pin) => {
+    code = String(code).trim().toUpperCase(); const key = await SG.teacherKey(code, mat, pin);
+    let sd, pd;
+    try { [sd, pd] = await Promise.all([db.collection('ptea').doc(key).get(), db.collection('pub').doc(code).get()]); } catch (e) { throw new Error(SG.errMsg(e)); }
+    if (!pd.exists) throw new Error('Code école introuvable.');
+    if (!sd.exists) throw new Error('Identifiant ou code enseignant incorrect.');
+    const stt = SG.status(accessObj(pd.data().access)); if (stt !== 'active' && stt !== 'trial') throw new Error('Cet espace est momentanément indisponible. Contactez l\'école.');
+    SG.wr('tsess', { code, key }); return { code, key };
+  };
+  SG.teacherSession = () => SG.rd('tsess', null);
+  SG.teacherLogout = () => { try { localStorage.removeItem('sgv1_tsess'); } catch (e) { } };
+  SG.watchTeacher = (sess, cb) => {
+    const cur = {}; const emit = () => { if (cur.s && cur.p) cb(null, cur); };
+    const u1 = db.collection('ptea').doc(sess.key).onSnapshot(d => { cur.s = d; if (!d.exists) return cb(new Error('gone')); emit(); }, e => cb(e));
     const u2 = db.collection('pub').doc(sess.code).onSnapshot(d => { cur.p = d; emit(); }, e => cb(e));
     return () => { u1(); u2(); };
   };

@@ -110,6 +110,16 @@ service cloud.firestore {
       allow delete: if isAdmin() || isOwner(resource.data.ownerUid);
     }
 
+    // Dossier d'un enseignant pour lui-même : lecture par identifiant secret uniquement (pas de liste)
+    match /ptea/{id} {
+      allow get: if true;
+      allow list: if isStaff();
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isAdmin()
+        || (isOwner(resource.data.ownerUid) && request.resource.data.ownerUid == resource.data.ownerUid);
+      allow delete: if isAdmin() || isOwner(resource.data.ownerUid);
+    }
+
     // Messages de l'administrateur : lisibles par l'école visée (ou par toutes), écriture réservée à l'admin
     match /msgs/{id} {
       allow read: if isStaff() || (signedIn() && resource.data.target in ['all', request.auth.uid]);

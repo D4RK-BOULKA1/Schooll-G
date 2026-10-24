@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  const tabs = ['login', 'signup', 'parent', 'finish'];
+  const tabs = ['login', 'signup', 'parent', 'teacher', 'finish'];
   const $ = id => document.getElementById(id);
   function show(t) {
     if (!tabs.includes(t)) t = 'login';
@@ -76,6 +76,13 @@
     try { await SG.parentLogin(v.code, v.mat, v.pin); location.href = 'parent.html'; } catch (x) { err('parent', x.message); busy(f, false); }
   });
 
+  $('f-teacher').addEventListener('submit', async e => {
+    e.preventDefault(); const f = e.target, v = UI.read(f); err('teacher');
+    if (!v.code.trim() || !v.mat.trim() || !v.pin.trim()) return err('teacher', 'Renseignez les trois codes.');
+    busy(f, true);
+    try { await SG.teacherLogin(v.code, v.mat, v.pin); location.href = 'teacher.html'; } catch (x) { err('teacher', x.message); busy(f, false); }
+  });
+
   /* Lien de parrainage : ?ref=CODE pré-remplit le champ et ouvre l'inscription. */
   (function () { const m = /[?&]ref=([A-Za-z0-9]+)/.exec(location.search); if (!m) return; try { sessionStorage.setItem('sg_ref', m[1].toUpperCase()); } catch (e) { } if (!location.hash) location.hash = '#signup'; })();
   (function () { let r = ''; try { r = sessionStorage.getItem('sg_ref') || ''; } catch (e) { } if (r) document.querySelectorAll('input[name=ref]').forEach(i => { i.value = r; }); })();
@@ -84,6 +91,6 @@
   show(location.hash.slice(1) || 'login');
   SG.ready().then(async u => {
     const h = location.hash.slice(1);
-    if (u && h !== 'parent' && !/[?&]out=1/.test(location.search)) { try { await afterAuth(h === 'signup' ? 'signup' : 'login'); } catch (x) { err('login', SG.errMsg(x)); } }
+    if (u && h !== 'parent' && h !== 'teacher' && !/[?&]out=1/.test(location.search)) { try { await afterAuth(h === 'signup' ? 'signup' : 'login'); } catch (x) { err('login', SG.errMsg(x)); } }
   });
 })();

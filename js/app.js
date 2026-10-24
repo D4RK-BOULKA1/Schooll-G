@@ -263,7 +263,7 @@
       if (st0 !== 'trial' && st0 !== 'active' && !sess.byAdmin) { locked = true; liveStart(); return lockScreen(school0, st0); }
       SG.setCurrent(school0);
       const data = await SG.loadData(school0.id, { school: school0 });
-      Object.keys(D).forEach(k => delete D[k]); Object.assign(D, data); ld.set(90, 'Préparation de votre espace…');
+      Object.keys(D).forEach(k => delete D[k]); Object.assign(D, data); if (!sess.byAdmin && A.fixTeachers) A.fixTeachers(); ld.set(90, 'Préparation de votre espace…');
       try { const lg = (D.settings && D.settings.logo) || ''; localStorage.setItem('sg_brand', JSON.stringify({ id: school0.id, name: (D.settings && D.settings.name) || school0.name, logo: lg.length < 150000 ? lg : '' })); } catch (e) { }
       ld.brand({ name: (D.settings && D.settings.name) || school0.name, logo: D.settings && D.settings.logo }); await ld.done();
       SG.watchData(school0.id, D, () => { if (!document.querySelector('.ov') && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) route(); else UI.toast('Mise à jour reçue d\'un autre appareil.'); });
