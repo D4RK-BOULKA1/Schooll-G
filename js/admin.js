@@ -8,7 +8,7 @@
   const RO_TABS = new Set(['site', 'admins', 'settings']);
   const TABPERM = { dash: 'dash', schools: 'schools', prospects: 'prospects', an: 'an', pays: 'pays', logs: 'logs' };
   const denied = tab => !!TABPERM[tab] && !SG.can(TABPERM[tab]);
-  const RO_OK = new Set(['tab', 'logout', 'csv', 'refresh', 'view', 'detail', 'anref', 'anper']);
+  const RO_OK = new Set(['tab', 'logout', 'csv', 'refresh', 'view', 'detail', 'anref', 'anper', 'prevExit']);
   const DATA = { schools: [], subs: [], logs: [], msgs: [], refs: [], admins: [], visits: [], sess: [], online: [] };
   const $ = id => document.getElementById(id);
   const G = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
@@ -172,6 +172,12 @@
       <div style="margin-top:12px"><button class="btn btn-primary" type="button" data-a="saveDef">Enregistrer les accès généraux</button></div></form></div></div>`;
   }
   A.saveDef = async () => { const f = $('f-pdef'), p = {}; SG.PERMS.forEach(([k]) => { p[k] = !!f.elements[k].checked; }); try { await SG.setDefaultPerms(p); SG._defaults = p; SG.log('Accès généraux des administrateurs modifiés'); UI.toast('Accès généraux enregistrés.', 'ok'); render(); } catch (e) { UI.toast(SG.errMsg(e), 'err'); } };
+  A.prev = email => {
+    const x = DATA.admins.find(a => a.email === email); if (!x) return;
+    SG._prev = { email, name: x.name || x.email, perms: Object.assign({}, x.perms || {}), defaults: Object.assign({}, SG._defaults || {}) };
+    MK.shown.clear(); ST.tab = 'dash'; ST.q = ''; ST.f = ''; render(); UI.toast('Vous voyez maintenant le panel comme ' + SG._prev.name + '.', 'ok');
+  };
+  A.prevExit = () => { SG._prev = null; MK.shown.clear(); ST.tab = 'admins'; render(); };
   A.permAdm = email => {
     const x = DATA.admins.find(a => a.email === email); if (!x) return; const m = x.perms || {}, d = SG._defaults || {};
     const dl = k => (k in d ? d[k] === true : true) ? 'autorisé' : 'refusé';
@@ -183,7 +189,7 @@
       <form class="frm" id="f-adm" novalidate><div class="fld half"><label>Nom</label><input type="text" name="name" placeholder="Ex : Léo"></div><div class="fld half"><label>Email (Gmail de préférence)</label><input type="email" name="email" placeholder="leo@gmail.com" required></div><div class="fld"><button class="btn btn-primary" data-a="addAdmin" type="button">Ajouter cet administrateur</button></div></form></div></div>
       ${permsDefaultCard()}
       <div class="card"><div class="ch"><h3>Administrateurs (${DATA.admins.length + 1})</h3></div><div class="cb"><div class="row"><span><b>${esc(SG_CONFIG.adminEmail)}</b> <small class="muted">· administrateur principal</small></span>${badge('Tous les droits', 'ok')}</div>
-      ${DATA.admins.map(x => `<div class="row" style="gap:10px;flex-wrap:wrap"><span><b>${esc(x.name || x.email)}</b> <small class="muted">· ${esc(x.email)}</small></span><span style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${badge('Lecture seule', 'info')}${permBadge(x)}<button class="btn btn-ghost btn-sm" data-a="permAdm" data-id="${esc(x.email)}">Accès</button><a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${SG.waLink('', 'Bonjour' + (x.name ? ' ' + x.name : '') + ', je t\'ai ajouté comme administrateur (lecture seule) de School-G. Ouvre ' + adminUrl() + ' et connecte-toi avec Google avec l\'adresse ' + x.email + '.')}">Envoyer l'invitation</a><button class="btn btn-ghost btn-sm" data-a="delAdmin" data-id="${esc(x.email)}">Retirer</button></span></div>`).join('') || '<p class="muted small" style="margin-top:10px">Aucun administrateur invité pour le moment.</p>'}
+      ${DATA.admins.map(x => `<div class="row" style="gap:10px;flex-wrap:wrap"><span><b>${esc(x.name || x.email)}</b> <small class="muted">· ${esc(x.email)}</small></span><span style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${badge('Lecture seule', 'info')}${permBadge(x)}<button class="btn btn-ghost btn-sm" data-a="permAdm" data-id="${esc(x.email)}">Accès</button><button class="btn btn-navy btn-sm" data-a="prev" data-id="${esc(x.email)}">Voir son point de vue</button><a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${SG.waLink('', 'Bonjour' + (x.name ? ' ' + x.name : '') + ', je t\'ai ajouté comme administrateur (lecture seule) de School-G. Ouvre ' + adminUrl() + ' et connecte-toi avec Google avec l\'adresse ' + x.email + '.')}">Envoyer l'invitation</a><button class="btn btn-ghost btn-sm" data-a="delAdmin" data-id="${esc(x.email)}">Retirer</button></span></div>`).join('') || '<p class="muted small" style="margin-top:10px">Aucun administrateur invité pour le moment.</p>'}
       <p class="small muted" style="margin-top:14px">La personne ouvre <span class="code">${esc(adminUrl())}</span> et se connecte avec Google, avec exactement l'email indiqué ci-dessus. Elle n'a pas besoin des codes d'accès.</p></div></div>`;
   }
   A.addAdmin = async () => { const v = UI.read($('f-adm')); try { await SG.addAdmin(v.email, v.name); DATA.admins = await SG.listAdmins(); SG.log('Administrateur invité : ' + v.email); UI.toast('Administrateur ajouté.', 'ok'); render(); } catch (e) { UI.toast(e.message && !e.code ? e.message : SG.errMsg(e), 'err'); } };
@@ -261,7 +267,7 @@
     if (a === 'tab' && denied(el.dataset.id)) { e.preventDefault(); return UI.toast('Accès interdit par l\'administrateur.', 'err'); }
     if (a === 'view' && !SG.isAdmin() && (!SG.can('view') || isProspect(byId(el.dataset.id) || {}))) { e.preventDefault(); return UI.toast('Accès interdit par l\'administrateur.', 'err'); }
     if (a === 'tab') { e.preventDefault(); if (ST.tab === 'site' && el.dataset.id !== 'site') SG.siteCodeClear(); if (el.dataset.id === 'site' && !SG.siteCodeOk()) return askSiteCode(); ST.tab = el.dataset.id; if (ST.tab === 'logs') await load('logs'); if (ST.tab === 'an') { ST.tab = 'an'; render(); await load('an'); } if (ST.tab === 'settings') await load('msgs'); if (ST.tab === 'admins') { DATA.admins = await SG.listAdmins().catch(() => []); } if (ST.tab === 'site') { render(); await loadSiteTab(); } render(); return; }
-    if (a === 'logout') { e.preventDefault(); await SG.logout(); loginView(); return; }
+    if (a === 'logout') { e.preventDefault(); SG._prev = null; await SG.logout(); loginView(); return; }
     if (a === 'csv') return exportCsv();
     if (a === 'plans') return SG.siteCodeOk() ? plansModal() : askSiteCode(plansModal);
     if (a === 'announce') return announceModal();
@@ -371,6 +377,8 @@
     const side = $('side'), scrim = $('scrim'); const tog = on => { side.classList.toggle('open', on); scrim.classList.toggle('on', on); };
     $('mb').onclick = () => tog(true); scrim.onclick = () => tog(false); side.addEventListener('click', e => { if (e.target.closest('a.it')) tog(false); });
     drawList(); stripRO();
+    const pb = $('prevBar'); if (pb) pb.remove();
+    if (SG._prev) document.body.insertAdjacentHTML('afterbegin', `<div id="prevBar" style="position:sticky;top:0;z-index:60;background:var(--navy,#14213d);color:#fff;padding:10px 16px;display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;font-size:14px"><span>Point de vue de <b>${esc(SG._prev.name)}</b> (${esc(SG._prev.email)}) : voici exactement ce qu'il voit.</span><button class="btn btn-sm" data-a="prevExit" style="background:#fff;color:#14213d">Revenir à mon panel</button></div>`);
   }
 
   function codeView(msg) {

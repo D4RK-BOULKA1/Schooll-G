@@ -134,7 +134,7 @@
   /* Rôles : « owner » = administrateur principal (tous les droits) ; « viewer » = administrateur invité en lecture seule (liste dans la collection admins). */
   SG.role = '';
   SG.isOwner = () => !!(SG.user && SG.user.emailVerified && SG.user.email && SG.user.email.toLowerCase() === C.adminEmail.toLowerCase());
-  SG.isViewer = () => SG.role === 'viewer';
+  SG.isViewer = () => SG.role === 'viewer' || !!SG._prev;
   SG.isStaff = () => SG.isAdmin() || SG.isViewer();
   SG.loadRole = async () => {
     SG.role = '';
@@ -146,13 +146,15 @@
   /* Droits des administrateurs invités : chaque clé vaut true (autorisé), false (refusé) ou absente (suit le réglage général). */
   SG.PERMS = [['dash', 'Vue d\'ensemble'], ['schools', 'Écoles'], ['prospects', 'Prospects'], ['an', 'Données analytiques'], ['pays', 'Paiements'], ['logs', 'Journal'], ['view', 'Ouvrir l\'espace d\'une école']];
   SG._pm = {}; SG._pd = {};
-  SG.can = k => { if (SG.isAdmin()) return true; if (!SG.isViewer()) return false; const m = SG._pm || {}, d = SG._pd || {}; return k in m ? m[k] === true : (k in d ? d[k] === true : true); };
+  SG.can = k => { if (SG.isAdmin()) return true; if (!SG.isViewer()) return false; const m = SG._prev ? SG._prev.perms : (SG._pm || {}), d = SG._prev ? SG._prev.defaults : (SG._pd || {}); return k in m ? m[k] === true : (k in d ? d[k] === true : true); };
   SG.setAdminPerms = (email, perms) => db.collection('admins').doc(String(email).toLowerCase()).update({ perms });
   SG.setDefaultPerms = perms => db.collection('admins').doc('_default').set({ perms, email: '_default', role: 'default' });
   SG.listAdmins = async () => { const snap = await db.collection('admins').get(); const l = []; snap.forEach(d => { if (d.id !== '_default') l.push(Object.assign({ id: d.id }, d.data())); }); SG._defaults = (snap.docs.find(d => d.id === '_default') || { data: () => ({}) }).data().perms || {}; return l.sort((a, b) => (a.createdMs || 0) - (b.createdMs || 0)); };
   SG.addAdmin = async (email, name) => { const e = String(email || '').trim().toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new Error('Email invalide.'); if (e === C.adminEmail.toLowerCase()) throw new Error('C\'est déjà l\'administrateur principal.'); await db.collection('admins').doc(e).set({ email: e, name: String(name || '').trim(), role: 'viewer', createdMs: Date.now() }); };
   SG.removeAdmin = email => db.collection('admins').doc(String(email).toLowerCase()).delete();
-  SG.isAdmin = () => !!(SG.user && SG.user.emailVerified && SG.user.email && SG.user.email.toLowerCase() === C.adminEmail.toLowerCase());
+  /* Aperçu : l'administrateur principal voit le panel exactement comme un invité (SG._prev = ses droits). */
+  SG._prev = null;
+  SG.isAdmin = () => !SG._prev && !!(SG.user && SG.user.emailVerified && SG.user.email && SG.user.email.toLowerCase() === C.adminEmail.toLowerCase());
   SG.hasPassword = () => !!(SG.user && SG.user.providerData.some(p => p.providerId === 'password'));
   SG.loginEmail = async (email, pw) => (await auth.signInWithEmailAndPassword(String(email).trim(), pw)).user;
   SG.signupEmail = async (email, pw) => (await auth.createUserWithEmailAndPassword(String(email).trim(), pw)).user;
