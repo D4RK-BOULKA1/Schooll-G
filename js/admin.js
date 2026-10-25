@@ -6,6 +6,8 @@
   const root = document.getElementById('root');
   const ST = { q: '', f: '', tab: 'dash' };
   const RO_TABS = new Set(['site', 'admins', 'settings']);
+  const TABPERM = { dash: 'dash', schools: 'schools', prospects: 'prospects', an: 'an', pays: 'pays', logs: 'logs' };
+  const denied = tab => !!TABPERM[tab] && !SG.can(TABPERM[tab]);
   const RO_OK = new Set(['tab', 'logout', 'csv', 'refresh', 'view', 'detail', 'anref', 'anper']);
   const DATA = { schools: [], subs: [], logs: [], msgs: [], refs: [], admins: [], visits: [], sess: [], online: [] };
   const $ = id => document.getElementById(id);
@@ -42,8 +44,9 @@
 
   /* ---------- données ---------- */
   async function load(what) {
-    if (!what || what === 'schools') DATA.schools = await SG.schools();
+    if (!what || what === 'schools') DATA.schools = SG.isAdmin() || SG.can('schools') || SG.can('prospects') || SG.can('dash') || SG.can('view') ? await SG.schools() : [];
     if (!what || what === 'subs') DATA.subs = await SG.subs().catch(() => []);
+    if (!what || what === 'admins') { if (SG.isAdmin()) DATA.admins = await SG.listAdmins().catch(() => []); }
     if (!what || what === 'visits') DATA.visits = await SG.visits().catch(() => []);
     if (!what || what === 'refs') DATA.refs = await SG.allReferrals().catch(() => []);
     if (what === 'an') { DATA.sess = await SG.sessions(90).catch(() => []); DATA.online = await SG.onlineNow().catch(() => []); }
@@ -78,6 +81,12 @@
      (puis re-masquer) ; un administrateur invité reçoit « Accès interdit ». Tout se re-masque seul après 30 secondes. */
   const maskEmail = e => { e = String(e || ''); if (!e) return e; const l = e.split('@')[0], t = (e.split('@')[1] || '').split('.').pop(); return (l[0] || '') + '*****@*****' + (t ? '.' + t : ''); };
   const maskPhone = p => String(p || '') ? '** ** ** **' : '';
+  const maskName = n => { n = String(n || '').trim(); return n ? n[0] + '*****' : n; };
+  /* Prospects (écoles en essai ou expirées) : nom de l'école et du directeur masqués pour tout le monde, comme les emails. */
+  const isProspect = s => { const st = SG.status(s); return st === 'trial' || st === 'expired'; };
+  const nameOf = s => isProspect(s) ? mkCell('n', s, s.name, maskName) : esc(s.name);
+  const dirOf = s => isProspect(s) ? mkCell('d', s, s.director, maskName) : esc(s.director);
+  const plainName = s => SG.isAdmin() || !isProspect(s) ? s.name : maskName(s.name);
   const MK = { shown: new Set(), vals: {}, timer: null };
   const eyeBtn = (k, on) => `<button type="button" data-a="reveal" data-id="${k}" title="${on ? 'Masquer' : 'Afficher'}" aria-label="${on ? 'Masquer' : 'Afficher'}" style="background:none;border:0;padding:0 0 0 6px;color:var(--mute);cursor:pointer;vertical-align:middle">${ic(on ? 'eyeoff' : 'eye', 15)}</button>`;
   const mkCell = (kind, s, val, fn) => { if (!val) return ''; const k = kind + ':' + s.id; MK.vals[k] = [val, fn]; const on = SG.isAdmin() && MK.shown.has(k); return `<span data-mk="${k}">${esc(on ? val : fn(val))}</span>${eyeBtn(k, on)}`; };
@@ -113,8 +122,8 @@
   A.detail = id => {
     const s = byId(id), st = SG.status(s), subs = DATA.subs.filter(x => x.schoolId === id), k = s.stats || {};
     UI.modal({
-      title: esc(s.name), size: 'lg', body: `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">${badge(SG.STATUS[st][0], SG.STATUS[st][1])}<span class="code">Code ${esc(s.code)}</span>${badge(esc(s.plan), 'info')}</div>
-      <div class="g2"><dl class="kv"><dt>Directeur</dt><dd>${esc(s.director)}</dd><dt>Email</dt><dd>${cEmail(s)}</dd><dt>Téléphone</dt><dd>${cPhone(s)}</dd><dt>Ville</dt><dd>${esc(s.city || '—')}</dd><dt>Inscrit le</dt><dd>${fdate(s.createdAt)}</dd><dt>Fin d'essai</dt><dd>${fdate(s.trialEnd)}</dd><dt>Abonné jusqu'au</dt><dd>${fdate(s.paidUntil) || '—'}</dd></dl>
+      title: nameOf(s), size: 'lg', body: `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">${badge(SG.STATUS[st][0], SG.STATUS[st][1])}<span class="code">Code ${esc(s.code)}</span>${badge(esc(s.plan), 'info')}</div>
+      <div class="g2"><dl class="kv"><dt>Directeur</dt><dd>${dirOf(s)}</dd><dt>Email</dt><dd>${cEmail(s)}</dd><dt>Téléphone</dt><dd>${cPhone(s)}</dd><dt>Ville</dt><dd>${esc(s.city || '—')}</dd><dt>Inscrit le</dt><dd>${fdate(s.createdAt)}</dd><dt>Fin d'essai</dt><dd>${fdate(s.trialEnd)}</dd><dt>Abonné jusqu'au</dt><dd>${fdate(s.paidUntil) || '—'}</dd></dl>
       <dl class="kv"><dt>Élèves</dt><dd>${k.students || 0}</dd><dt>Classes</dt><dd>${k.classes || 0}</dd><dt>Professeurs</dt><dd>${k.teachers || 0}</dd><dt>Encaissé par l'école</dt><dd>${money(k.revenue || 0)}</dd><dt>Notes internes</dt><dd>${esc(s.notes || '—')}</dd></dl></div>
       <h4 style="margin:18px 0 8px;font-size:16px">Abonnements payés</h4>${subs.length ? `<div class="tw"><table class="tbl"><tbody>${subs.map(x => `<tr><td>${fdate(x.date)}</td><td>${esc(x.plan)} · ${x.months} mois</td><td>${esc(x.method)}</td><td class="r"><b>${money(x.amount)}</b></td></tr>`).join('')}</tbody></table></div>` : '<p class="muted small">Aucun paiement.</p>'}`
     });
@@ -148,17 +157,33 @@
     const P = prospects();
     const sub = s => SG.status(s) === 'active';
     const R = DATA.refs.map(r => { const filleul = DATA.schools.find(x => x.id === r.id), marraine = DATA.schools.find(x => x.code === r.code); return { r, filleul, marraine }; });
-    return `<div class="card" style="margin-bottom:20px"><div class="ch"><h3>Prospects à relancer (${P.length})</h3></div><div class="tw">${P.length ? `<table class="tbl"><thead><tr><th>École</th><th>Raison</th><th>Dernier suivi</th><th></th></tr></thead><tbody>${P.map(p => { const c = p.s.crm || {}; return `<tr><td><b>${esc(p.s.name)}</b><br><small class="muted">${esc(p.s.director)} · ${cPhone(p.s)}</small></td><td>${badge(esc(p.why), p.pr === 3 ? 'bad' : p.pr === 2 ? 'warn' : 'info')}</td><td>${c.last ? fdate(new Date(c.last).toISOString()) + ' · ' + (c.n || 1) + ' relance(s)' : '<span class="muted">Jamais contactée</span>'}${c.note ? '<br><small class="muted">' + esc(c.note) + '</small>' : ''}</td><td><div class="acts"><a class="btn btn-primary btn-sm" target="_blank" rel="noopener" data-a="wa" data-id="${p.s.id}" href="${SG.isAdmin() ? SG.waLink(p.s.phone, waMsg(p)) : '#'}">Relancer sur WhatsApp</a><button class="btn btn-ghost btn-sm" data-a="note" data-id="${p.s.id}">Note</button></div></td></tr>`; }).join('')}</tbody></table>` : '<div class="empty"><h4>Aucun prospect à relancer</h4><p>Les écoles inactives ou en fin d\'essai apparaîtront ici.</p></div>'}</div></div>
-    <div class="card"><div class="ch"><h3>Parrainages (${R.length})</h3></div><div class="tw">${R.length ? `<table class="tbl"><thead><tr><th>Filleule</th><th>Marraine</th><th>Statut du filleul</th><th></th></tr></thead><tbody>${R.map(({ r, filleul, marraine }) => `<tr><td><b>${esc(r.name)}</b><br><small class="muted">${fdate(new Date(r.createdAtMs).toISOString())}</small></td><td>${marraine ? esc(marraine.name) : '<span class="muted">Code ' + esc(r.code) + '</span>'}</td><td>${filleul ? badge(SG.STATUS[SG.status(filleul)][0], SG.STATUS[SG.status(filleul)][1]) : ''}</td><td>${r.rewarded ? badge('1 mois offert', 'ok') : filleul && marraine ? `<button class="btn btn-primary btn-sm" data-a="grant" data-id="${r.id}">Offrir 1 mois au parrain</button>` : ''}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucun parrainage</h4></div>'}</div></div>`;
+    return `<div class="card" style="margin-bottom:20px"><div class="ch"><h3>Prospects à relancer (${P.length})</h3></div><div class="tw">${P.length ? `<table class="tbl"><thead><tr><th>École</th><th>Raison</th><th>Dernier suivi</th><th></th></tr></thead><tbody>${P.map(p => { const c = p.s.crm || {}; return `<tr><td><b>${nameOf(p.s)}</b><br><small class="muted">${dirOf(p.s)} · ${cPhone(p.s)}</small></td><td>${badge(esc(p.why), p.pr === 3 ? 'bad' : p.pr === 2 ? 'warn' : 'info')}</td><td>${c.last ? fdate(new Date(c.last).toISOString()) + ' · ' + (c.n || 1) + ' relance(s)' : '<span class="muted">Jamais contactée</span>'}${c.note ? '<br><small class="muted">' + esc(c.note) + '</small>' : ''}</td><td><div class="acts"><a class="btn btn-primary btn-sm" target="_blank" rel="noopener" data-a="wa" data-id="${p.s.id}" href="${SG.isAdmin() ? SG.waLink(p.s.phone, waMsg(p)) : '#'}">Relancer sur WhatsApp</a><button class="btn btn-ghost btn-sm" data-a="note" data-id="${p.s.id}">Note</button></div></td></tr>`; }).join('')}</tbody></table>` : '<div class="empty"><h4>Aucun prospect à relancer</h4><p>Les écoles inactives ou en fin d\'essai apparaîtront ici.</p></div>'}</div></div>
+    <div class="card"><div class="ch"><h3>Parrainages (${R.length})</h3></div><div class="tw">${R.length ? `<table class="tbl"><thead><tr><th>Filleule</th><th>Marraine</th><th>Statut du filleul</th><th></th></tr></thead><tbody>${R.map(({ r, filleul, marraine }) => `<tr><td><b>${filleul ? nameOf(filleul) : esc(SG.isAdmin() ? r.name : maskName(r.name))}</b><br><small class="muted">${fdate(new Date(r.createdAtMs).toISOString())}</small></td><td>${marraine ? nameOf(marraine) : '<span class="muted">Code ' + esc(r.code) + '</span>'}</td><td>${filleul ? badge(SG.STATUS[SG.status(filleul)][0], SG.STATUS[SG.status(filleul)][1]) : ''}</td><td>${r.rewarded ? badge('1 mois offert', 'ok') : filleul && marraine ? `<button class="btn btn-primary btn-sm" data-a="grant" data-id="${r.id}">Offrir 1 mois au parrain</button>` : ''}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucun parrainage</h4></div>'}</div></div>`;
   }
 
   /* ---------- administrateurs invités (lecture seule) ---------- */
   const adminUrl = () => location.href.replace(/[?#].*$/, '').replace(/[^/]*$/, '') + 'admin.html';
+  const effPerm = (x, k) => { const m = x.perms || {}, d = SG._defaults || {}; return k in m ? m[k] === true : (k in d ? d[k] === true : true); };
+  const permBadge = x => { const n = SG.PERMS.filter(([k]) => !effPerm(x, k)).length; return n ? badge(n + ' accès refusé(s)', 'warn') : badge('Tous les accès', 'ok'); };
+  function permsDefaultCard() {
+    const d = SG._defaults || {};
+    return `<div class="card" style="margin-bottom:16px"><div class="ch"><h3>Accès de tous les administrateurs invités</h3></div><div class="cb"><p class="muted small" style="margin-bottom:12px">Cochez ce que vos administrateurs invités peuvent consulter. Ce réglage s'applique à tous, sauf à ceux pour qui vous avez réglé un accès particulier avec le bouton « Accès » de leur ligne.</p>
+      <form id="f-pdef" class="frm" novalidate>${SG.PERMS.map(([k, l]) => `<label style="display:flex;gap:10px;align-items:center;padding:7px 0;cursor:pointer"><input type="checkbox" name="${k}" ${k in d ? (d[k] === true ? 'checked' : '') : 'checked'}> <span>${l}</span></label>`).join('')}
+      <div style="margin-top:12px"><button class="btn btn-primary" type="button" data-a="saveDef">Enregistrer les accès généraux</button></div></form></div></div>`;
+  }
+  A.saveDef = async () => { const f = $('f-pdef'), p = {}; SG.PERMS.forEach(([k]) => { p[k] = !!f.elements[k].checked; }); try { await SG.setDefaultPerms(p); SG._defaults = p; SG.log('Accès généraux des administrateurs modifiés'); UI.toast('Accès généraux enregistrés.', 'ok'); render(); } catch (e) { UI.toast(SG.errMsg(e), 'err'); } };
+  A.permAdm = email => {
+    const x = DATA.admins.find(a => a.email === email); if (!x) return; const m = x.perms || {}, d = SG._defaults || {};
+    const dl = k => (k in d ? d[k] === true : true) ? 'autorisé' : 'refusé';
+    const md = UI.modal({ title: 'Accès de ' + esc(x.name || x.email), size: 'sm', body: `<p class="muted small" style="margin-bottom:12px">Pour chaque section, choisissez : suivre le réglage général, autoriser ou refuser pour cette personne seulement.</p><form id="f-padm" class="frm" novalidate>${SG.PERMS.map(([k, l]) => `<div class="fld"><label>${l}</label><select name="${k}"><option value="">Selon le réglage général (${dl(k)})</option><option value="1" ${m[k] === true ? 'selected' : ''}>Autorisé</option><option value="0" ${m[k] === false ? 'selected' : ''}>Refusé</option></select></div>`).join('')}<div class="fld"><button class="btn btn-primary" type="submit">Enregistrer</button></div></form>` });
+    const f = md.el.querySelector('#f-padm'); f.onsubmit = async ev => { ev.preventDefault(); const p = {}; SG.PERMS.forEach(([k]) => { const v = f.elements[k].value; if (v !== '') p[k] = v === '1'; }); try { await SG.setAdminPerms(email, p); x.perms = p; SG.log('Accès modifiés : ' + email); md.close(); UI.toast('Accès enregistrés.', 'ok'); render(); } catch (e) { UI.toast(SG.errMsg(e), 'err'); } };
+  };
   function adminsBody() {
     return `<div class="card" style="margin-bottom:16px"><div class="ch"><h3>Inviter un administrateur</h3></div><div class="cb"><p class="muted small" style="margin-bottom:14px">Un administrateur invité peut seulement consulter : écoles, paiements, prospects, journal, et ouvrir l'espace d'une école en lecture seule. Il ne peut rien modifier, ni bannir, ni bloquer, ni encaisser, ni changer le site.</p>
       <form class="frm" id="f-adm" novalidate><div class="fld half"><label>Nom</label><input type="text" name="name" placeholder="Ex : Léo"></div><div class="fld half"><label>Email (Gmail de préférence)</label><input type="email" name="email" placeholder="leo@gmail.com" required></div><div class="fld"><button class="btn btn-primary" data-a="addAdmin" type="button">Ajouter cet administrateur</button></div></form></div></div>
+      ${permsDefaultCard()}
       <div class="card"><div class="ch"><h3>Administrateurs (${DATA.admins.length + 1})</h3></div><div class="cb"><div class="row"><span><b>${esc(SG_CONFIG.adminEmail)}</b> <small class="muted">· administrateur principal</small></span>${badge('Tous les droits', 'ok')}</div>
-      ${DATA.admins.map(x => `<div class="row" style="gap:10px;flex-wrap:wrap"><span><b>${esc(x.name || x.email)}</b> <small class="muted">· ${esc(x.email)}</small></span><span style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${badge('Lecture seule', 'info')}<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${SG.waLink('', 'Bonjour' + (x.name ? ' ' + x.name : '') + ', je t\'ai ajouté comme administrateur (lecture seule) de School-G. Ouvre ' + adminUrl() + ' et connecte-toi avec Google avec l\'adresse ' + x.email + '.')}">Envoyer l'invitation</a><button class="btn btn-ghost btn-sm" data-a="delAdmin" data-id="${esc(x.email)}">Retirer</button></span></div>`).join('') || '<p class="muted small" style="margin-top:10px">Aucun administrateur invité pour le moment.</p>'}
+      ${DATA.admins.map(x => `<div class="row" style="gap:10px;flex-wrap:wrap"><span><b>${esc(x.name || x.email)}</b> <small class="muted">· ${esc(x.email)}</small></span><span style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${badge('Lecture seule', 'info')}${permBadge(x)}<button class="btn btn-ghost btn-sm" data-a="permAdm" data-id="${esc(x.email)}">Accès</button><a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${SG.waLink('', 'Bonjour' + (x.name ? ' ' + x.name : '') + ', je t\'ai ajouté comme administrateur (lecture seule) de School-G. Ouvre ' + adminUrl() + ' et connecte-toi avec Google avec l\'adresse ' + x.email + '.')}">Envoyer l'invitation</a><button class="btn btn-ghost btn-sm" data-a="delAdmin" data-id="${esc(x.email)}">Retirer</button></span></div>`).join('') || '<p class="muted small" style="margin-top:10px">Aucun administrateur invité pour le moment.</p>'}
       <p class="small muted" style="margin-top:14px">La personne ouvre <span class="code">${esc(adminUrl())}</span> et se connecte avec Google, avec exactement l'email indiqué ci-dessus. Elle n'a pas besoin des codes d'accès.</p></div></div>`;
   }
   A.addAdmin = async () => { const v = UI.read($('f-adm')); try { await SG.addAdmin(v.email, v.name); DATA.admins = await SG.listAdmins(); SG.log('Administrateur invité : ' + v.email); UI.toast('Administrateur ajouté.', 'ok'); render(); } catch (e) { UI.toast(e.message && !e.code ? e.message : SG.errMsg(e), 'err'); } };
@@ -233,6 +258,8 @@
   document.addEventListener('click', async e => {
     const el = e.target.closest('[data-a]'); if (!el) return; const a = el.dataset.a;
     if (!SG.isAdmin() && (!RO_OK.has(a) || (a === 'tab' && RO_TABS.has(el.dataset.id)))) { e.preventDefault(); return UI.toast('Accès interdit par l\'administrateur.', 'err'); }
+    if (a === 'tab' && denied(el.dataset.id)) { e.preventDefault(); return UI.toast('Accès interdit par l\'administrateur.', 'err'); }
+    if (a === 'view' && !SG.isAdmin() && (!SG.can('view') || isProspect(byId(el.dataset.id) || {}))) { e.preventDefault(); return UI.toast('Accès interdit par l\'administrateur.', 'err'); }
     if (a === 'tab') { e.preventDefault(); if (ST.tab === 'site' && el.dataset.id !== 'site') SG.siteCodeClear(); if (el.dataset.id === 'site' && !SG.siteCodeOk()) return askSiteCode(); ST.tab = el.dataset.id; if (ST.tab === 'logs') await load('logs'); if (ST.tab === 'an') { ST.tab = 'an'; render(); await load('an'); } if (ST.tab === 'settings') await load('msgs'); if (ST.tab === 'admins') { DATA.admins = await SG.listAdmins().catch(() => []); } if (ST.tab === 'site') { render(); await loadSiteTab(); } render(); return; }
     if (a === 'logout') { e.preventDefault(); await SG.logout(); loginView(); return; }
     if (a === 'csv') return exportCsv();
@@ -255,12 +282,12 @@
     });
   }
   function announceModal() { const g = SG.global(); UI.formModal({ title: 'Annonce affichée à toutes les écoles', fields: [{ name: 'a', label: 'Message (vide pour retirer)', type: 'textarea', rows: 3, def: g.announcement }], onSubmit: v => SG.setGlobal({ announcement: v.a.trim() }).then(() => { UI.toast('Annonce mise à jour.', 'ok'); render(); }).catch(x => UI.toast(SG.errMsg(x), 'err')) }); }
-  function exportCsv() { UI.csv('ecoles-school-g.csv', [['École', 'Directeur', 'Email', 'Téléphone', 'Ville', 'Statut', 'Formule', 'Inscrit le', 'Fin essai', 'Abonné jusqu\'au', 'Élèves'], ...DATA.schools.map(s => [s.name, s.director, SG.isAdmin() ? s.email : maskEmail(s.email), SG.isAdmin() ? s.phone : maskPhone(s.phone), s.city, SG.STATUS[SG.status(s)][0], s.plan, fdate(s.createdAt), fdate(s.trialEnd), fdate(s.paidUntil), (s.stats && s.stats.students) || 0])]); }
+  function exportCsv() { UI.csv('ecoles-school-g.csv', [['École', 'Directeur', 'Email', 'Téléphone', 'Ville', 'Statut', 'Formule', 'Inscrit le', 'Fin essai', 'Abonné jusqu\'au', 'Élèves'], ...DATA.schools.map(s => [plainName(s), SG.isAdmin() || !isProspect(s) ? s.director : maskName(s.director), SG.isAdmin() ? s.email : maskEmail(s.email), SG.isAdmin() ? s.phone : maskPhone(s.phone), s.city, SG.STATUS[SG.status(s)][0], s.plan, fdate(s.createdAt), fdate(s.trialEnd), fdate(s.paidUntil), (s.stats && s.stats.students) || 0])]); }
 
   /* ---------- rendu ---------- */
   function rows() {
     const q = ST.q.toLowerCase().trim();
-    return DATA.schools.filter(s => (!ST.f || SG.status(s) === ST.f) && (!q || ((SG.isAdmin() ? s.name + s.email + s.phone + s.director + s.code : s.name + s.director + s.code)).toLowerCase().includes(q))).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    return DATA.schools.filter(s => (!ST.f || SG.status(s) === ST.f) && (!q || ((SG.isAdmin() ? s.name + s.email + s.phone + s.director + s.code : (isProspect(s) ? '' : s.name + s.director + s.code))).toLowerCase().includes(q))).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   }
   function schoolActions(s) {
     const st = SG.status(s); const b = (a, ico, t) => `<button class="btn btn-ghost btn-sm btn-icon" data-a="${a}" data-id="${s.id}" title="${t}" aria-label="${t}">${ic(ico, 16)}</button>`;
@@ -273,7 +300,7 @@
   }
   function drawList() {
     const box = $('list'); if (!box) return; const l = rows();
-    box.innerHTML = l.length ? `<table class="tbl"><thead><tr><th>École</th><th>Contact</th><th>Statut</th><th>Reste</th><th class="c">Élèves</th><th>Inscrite</th><th></th></tr></thead><tbody>${l.map(s => { const st = SG.status(s); return `<tr><td><b>${esc(s.name)}</b><br><small class="muted">${esc(s.director)} · code ${esc(s.code)}</small></td><td>${cEmail(s)}<br><small class="muted">${cPhone(s)}</small></td><td>${badge(SG.STATUS[st][0], SG.STATUS[st][1])}<br><small class="muted">${esc(s.plan)}</small></td><td>${st === 'trial' || st === 'active' ? SG.daysLeft(s) + ' j' : '—'}</td><td class="c">${(s.stats && s.stats.students) || 0}</td><td>${fdate(s.createdAt)}</td><td>${schoolActions(s)}</td></tr>`; }).join('')}</tbody></table>` : `<div class="empty"><h4>Aucune école</h4><p>${DATA.schools.length ? 'Aucun résultat pour ce filtre.' : 'Les écoles inscrites apparaîtront ici.'}</p></div>`;
+    box.innerHTML = l.length ? `<table class="tbl"><thead><tr><th>École</th><th>Contact</th><th>Statut</th><th>Reste</th><th class="c">Élèves</th><th>Inscrite</th><th></th></tr></thead><tbody>${l.map(s => { const st = SG.status(s); return `<tr><td><b>${nameOf(s)}</b><br><small class="muted">${dirOf(s)} · code ${isProspect(s) && !SG.isAdmin() ? '******' : esc(s.code)}</small></td><td>${cEmail(s)}<br><small class="muted">${cPhone(s)}</small></td><td>${badge(SG.STATUS[st][0], SG.STATUS[st][1])}<br><small class="muted">${esc(s.plan)}</small></td><td>${st === 'trial' || st === 'active' ? SG.daysLeft(s) + ' j' : '—'}</td><td class="c">${(s.stats && s.stats.students) || 0}</td><td>${fdate(s.createdAt)}</td><td>${schoolActions(s)}</td></tr>`; }).join('')}</tbody></table>` : `<div class="empty"><h4>Aucune école</h4><p>${DATA.schools.length ? 'Aucun résultat pour ce filtre.' : 'Les écoles inscrites apparaîtront ici.'}</p></div>`;
     stripRO();
   }
 
@@ -324,8 +351,9 @@
       ${visitsHtml()}
       <div class="g21" style="margin-bottom:20px"><div class="card"><div class="ch"><h3>Inscriptions (barre orange) et revenus en milliers de FCFA (barre marine)</h3></div><div class="cb">${UI.bars(S.chart, { h: 190 })}</div></div>
       <div class="card"><div class="ch"><h3>Répartition</h3></div><div class="cb">${[['Abonnées', S.by.active, 'ok'], ['En essai', S.by.trial, 'info'], ['Expirées', S.by.expired, 'warn'], ['Bloquées', S.by.blocked, 'bad'], ['Bannies', S.by.banned, 'bad']].map(([l, n, k]) => `<div class="row"><span>${l}</span>${badge(n, k)}</div>`).join('')}</div></div></div>
-      <div class="card"><div class="ch"><h3>Dernières inscriptions</h3><button class="btn btn-ghost btn-sm" data-a="tab" data-id="schools">Tout voir</button></div><div class="tw">${S.sch.length ? `<table class="tbl"><tbody>${S.sch.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 6).map(s => `<tr><td><b>${esc(s.name)}</b><br><small class="muted">${cEmail(s)}</small></td><td>${badge(SG.STATUS[SG.status(s)][0], SG.STATUS[SG.status(s)][1])}</td><td>${fdate(s.createdAt)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucune école pour l\'instant</h4><p>Les inscriptions à l\'essai gratuit apparaîtront ici.</p></div>'}</div></div>`;
-    if (ST.tab === 'dash') body = dashHtml();
+      <div class="card"><div class="ch"><h3>Dernières inscriptions</h3><button class="btn btn-ghost btn-sm" data-a="tab" data-id="schools">Tout voir</button></div><div class="tw">${S.sch.length ? `<table class="tbl"><tbody>${S.sch.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 6).map(s => `<tr><td><b>${nameOf(s)}</b><br><small class="muted">${cEmail(s)}</small></td><td>${badge(SG.STATUS[SG.status(s)][0], SG.STATUS[SG.status(s)][1])}</td><td>${fdate(s.createdAt)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><h4>Aucune école pour l\'instant</h4><p>Les inscriptions à l\'essai gratuit apparaîtront ici.</p></div>'}</div></div>`;
+    if (denied(ST.tab)) body = `<div class="card"><div class="cb" style="text-align:center;padding:40px 20px"><div style="color:var(--orange-d);margin-bottom:10px">${ic('lock', 30)}</div><h3 style="margin-bottom:6px">Accès interdit par l'administrateur</h3><p class="muted">Cette section ne fait pas partie de vos accès. Choisissez une autre section dans le menu.</p></div></div>`;
+    else if (ST.tab === 'dash') body = dashHtml();
     else if (ST.tab === 'an') body = anHtml(dashHtml);
     else if (ST.tab === 'schools') body = `<div class="tools"><div class="sr">${ic('search', 16)}<input type="search" id="q" placeholder="Rechercher une école, email, téléphone, code" value="${esc(ST.q)}"></div><select id="f"><option value="">Tous les statuts</option>${Object.entries(SG.STATUS).map(([k, v]) => `<option value="${k}" ${ST.f === k ? 'selected' : ''}>${v[0]}</option>`).join('')}</select><button class="btn btn-ghost" data-a="csv">${ic('dl', 16)}Exporter CSV</button><button class="btn btn-ghost" data-a="refresh">${ic('refresh', 16)}Actualiser</button></div><div class="card flat"><div class="tw" id="list"></div></div>`;
     else if (ST.tab === 'prospects') body = prospectsBody();

@@ -140,10 +140,16 @@
     SG.role = '';
     const u = SG.user; if (!u || !u.email || !u.emailVerified) return SG.role;
     if (SG.isOwner()) { SG.role = 'owner'; return SG.role; }
-    try { const d = await db.collection('admins').doc(u.email.toLowerCase()).get(); if (d.exists) SG.role = 'viewer'; } catch (e) { }
+    try { const d = await db.collection('admins').doc(u.email.toLowerCase()).get(); if (d.exists) { SG.role = 'viewer'; SG._pm = d.data().perms || {}; const g = await db.collection('admins').doc('_default').get().catch(() => null); SG._pd = (g && g.exists && g.data().perms) || {}; } } catch (e) { }
     return SG.role;
   };
-  SG.listAdmins = async () => { const snap = await db.collection('admins').get(); const l = []; snap.forEach(d => l.push(Object.assign({ id: d.id }, d.data()))); return l.sort((a, b) => (a.createdMs || 0) - (b.createdMs || 0)); };
+  /* Droits des administrateurs invités : chaque clé vaut true (autorisé), false (refusé) ou absente (suit le réglage général). */
+  SG.PERMS = [['dash', 'Vue d\'ensemble'], ['schools', 'Écoles'], ['prospects', 'Prospects'], ['an', 'Données analytiques'], ['pays', 'Paiements'], ['logs', 'Journal'], ['view', 'Ouvrir l\'espace d\'une école']];
+  SG._pm = {}; SG._pd = {};
+  SG.can = k => { if (SG.isAdmin()) return true; if (!SG.isViewer()) return false; const m = SG._pm || {}, d = SG._pd || {}; return k in m ? m[k] === true : (k in d ? d[k] === true : true); };
+  SG.setAdminPerms = (email, perms) => db.collection('admins').doc(String(email).toLowerCase()).update({ perms });
+  SG.setDefaultPerms = perms => db.collection('admins').doc('_default').set({ perms, email: '_default', role: 'default' });
+  SG.listAdmins = async () => { const snap = await db.collection('admins').get(); const l = []; snap.forEach(d => { if (d.id !== '_default') l.push(Object.assign({ id: d.id }, d.data())); }); SG._defaults = (snap.docs.find(d => d.id === '_default') || { data: () => ({}) }).data().perms || {}; return l.sort((a, b) => (a.createdMs || 0) - (b.createdMs || 0)); };
   SG.addAdmin = async (email, name) => { const e = String(email || '').trim().toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new Error('Email invalide.'); if (e === C.adminEmail.toLowerCase()) throw new Error('C\'est déjà l\'administrateur principal.'); await db.collection('admins').doc(e).set({ email: e, name: String(name || '').trim(), role: 'viewer', createdMs: Date.now() }); };
   SG.removeAdmin = email => db.collection('admins').doc(String(email).toLowerCase()).delete();
   SG.isAdmin = () => !!(SG.user && SG.user.emailVerified && SG.user.email && SG.user.email.toLowerCase() === C.adminEmail.toLowerCase());

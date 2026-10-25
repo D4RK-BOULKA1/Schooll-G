@@ -24,6 +24,27 @@ service cloud.firestore {
 
     function isStaff() { return isAdmin() || isViewer(); }
 
+    // Droits d'un administrateur invité : son propre réglage, sinon le réglage général (admins/_default), sinon autorisé.
+    // Clés : dash, schools, prospects, an, pays, logs, view
+    function myPerms() { return get(/databases/$(database)/documents/admins/$(request.auth.token.email.lower())).data.get('perms', {}); }
+    function defPerms() { return exists(/databases/$(database)/documents/admins/_default) ? get(/databases/$(database)/documents/admins/_default).data.get('perms', {}) : {}; }
+    function canSchools() {
+      let m = myPerms(); let d = defPerms();
+      return isAdmin() || (isViewer() && (m.get('schools', d.get('schools', true)) == true || m.get('prospects', d.get('prospects', true)) == true || m.get('dash', d.get('dash', true)) == true || m.get('view', d.get('view', true)) == true));
+    }
+    function canSubs() {
+      let m = myPerms(); let d = defPerms();
+      return isAdmin() || (isViewer() && (m.get('pays', d.get('pays', true)) == true || m.get('dash', d.get('dash', true)) == true));
+    }
+    function canVisits() {
+      let m = myPerms(); let d = defPerms();
+      return isAdmin() || (isViewer() && (m.get('an', d.get('an', true)) == true || m.get('dash', d.get('dash', true)) == true));
+    }
+    function can(k) {
+      let m = myPerms(); let d = defPerms();
+      return isAdmin() || (isViewer() && m.get(k, d.get(k, true)) == true);
+    }
+
     function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
 
     function now() { return request.time.toMillis(); }
@@ -50,8 +71,8 @@ service cloud.firestore {
 
     // Fiche école et abonnement
     match /schools/{uid} {
-      allow get: if isOwner(uid) || isStaff();
-      allow list: if isStaff();
+      allow get: if isOwner(uid) || canSchools();
+      allow list: if canSchools();
 
       // Création à l'inscription : essai gratuit uniquement, pas d'abonnement ni de statut truqué
       allow create: if isOwner(uid)
@@ -73,7 +94,7 @@ service cloud.firestore {
 
       // Données de l'école (élèves, paiements, notes...) : seulement si l'accès est actif
       match /d/{docId} {
-        allow read: if isOwner(uid) || isStaff();
+        allow read: if isOwner(uid) || can('view');
         allow write: if isAdmin() || (isOwner(uid) && hasAccess(uid));
       }
     }
@@ -81,7 +102,7 @@ service cloud.firestore {
     // Informations publiques d'une école pour l'espace parent (identifiée par son code)
     match /pub/{code} {
       allow get: if true;
-      allow list: if isStaff();
+      allow list: if canSchools();
 
       allow create: if signedIn()
         && request.resource.data.ownerUid == request.auth.uid
@@ -103,7 +124,7 @@ service cloud.firestore {
     // Dossier d'un élève pour son parent : lecture par identifiant secret uniquement (pas de liste)
     match /pstu/{id} {
       allow get: if true;
-      allow list: if isStaff();
+      allow list: if can('view');
       allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
       allow update: if isAdmin()
         || (isOwner(resource.data.ownerUid) && request.resource.data.ownerUid == resource.data.ownerUid);
@@ -113,7 +134,7 @@ service cloud.firestore {
     // Dossier d'un enseignant pour lui-même : lecture par identifiant secret uniquement (pas de liste)
     match /ptea/{id} {
       allow get: if true;
-      allow list: if isStaff();
+      allow list: if can('view');
       allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
       allow update: if isAdmin()
         || (isOwner(resource.data.ownerUid) && request.resource.data.ownerUid == resource.data.ownerUid);
@@ -124,7 +145,7 @@ service cloud.firestore {
     // la direction la lit et la décide ; la demande se lit par son identifiant aléatoire.
     match /adv/{id} {
       allow get: if true;
-      allow list: if isStaff() || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow list: if can('view') || (signedIn() && resource.data.ownerUid == request.auth.uid);
       allow create: if request.resource.data.keys().hasOnly(['ownerUid', 'key', 'tid', 'tname', 'amount', 'note', 'month', 'status', 'createdMs'])
         && request.resource.data.status == 'en attente'
         && request.resource.data.amount is number && request.resource.data.amount > 0 && request.resource.data.amount <= 10000000
@@ -144,7 +165,7 @@ service cloud.firestore {
 
     // Parrainage : un filleul déclare son parrain à l'inscription ; le parrain lit ses filleuls ; l'admin accorde la récompense
     match /refs/{id} {
-      allow read: if isStaff()
+      allow read: if can('prospects') || can('schools')
         || (signedIn() && exists(/databases/$(database)/documents/schools/$(request.auth.uid))
             && resource.data.code == get(/databases/$(database)/documents/schools/$(request.auth.uid)).data.code);
       allow create: if signedIn() && id == request.auth.uid && request.resource.data.ownerUid == request.auth.uid && request.resource.data.rewarded == false;
@@ -152,12 +173,12 @@ service cloud.firestore {
     }
 
     // Abonnements payés et journal : administrateur uniquement
-    match /subs/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
-    match /logs/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
+    match /subs/{id} { allow read: if canSubs(); allow write: if isAdmin(); }
+    match /logs/{id} { allow read: if can('logs'); allow write: if isAdmin(); }
 
     // Compteur de visites de la page d'accueil : n'importe qui peut ajouter 1 (jamais plus), seul le personnel lit
     match /vstats/{day} {
-      allow read: if isStaff();
+      allow read: if canVisits();
       allow create: if request.resource.data.keys().hasOnly(['day', 'n', 'u'])
         && request.resource.data.n == 1 && request.resource.data.u in [0, 1] && request.resource.data.day == day;
       allow update: if request.resource.data.keys().hasOnly(['day', 'n', 'u'])
@@ -170,7 +191,7 @@ service cloud.firestore {
     // progresser (temps actif et pages vues, par petits pas), seul le personnel lit, seul l'administrateur supprime.
     match /sess/{id} {
       function str(v, n) { return v is string && v.size() <= n; }
-      allow read: if isStaff();
+      allow read: if can('an');
       allow create: if request.resource.data.keys().hasOnly(['day', 'startMs', 'endMs', 'hr', 'dur', 'pages', 'entry', 'last', 'vid', 'ret', 'src', 'dev', 'os', 'br', 'model', 'sw', 'lang', 'tz', 'net', 'pwa', 'dark', 's_i', 's_l', 's_a', 's_p', 's_t'])
         && request.resource.data.keys().hasAll(['day', 'startMs', 'dur', 'pages', 'entry'])
         && str(request.resource.data.day, 10) && request.resource.data.dur == 0 && request.resource.data.pages == 1
@@ -186,7 +207,7 @@ service cloud.firestore {
 
     // Administrateurs invités (lecture seule) : seul l'administrateur principal les gère ; chacun peut lire sa propre fiche
     match /admins/{email} {
-      allow read: if isAdmin() || (signedIn() && request.auth.token.email.lower() == email);
+      allow read: if isAdmin() || (signedIn() && request.auth.token.email.lower() == email) || (email == '_default' && isViewer());
       allow write: if isAdmin();
     }
   }

@@ -256,7 +256,7 @@
       if (!user) return location.replace('login.html');
       const vid = new URLSearchParams(location.search).get('view');
       let id = user.uid;
-      if (vid) { await SG.loadRole(); if (SG.isStaff()) { id = vid; sess.byAdmin = true; if (!SG.isAdmin()) SG._ro = true; } }
+      if (vid) { await SG.loadRole(); if (SG.isStaff() && !SG.can('view')) { alert('Accès interdit par l\'administrateur.'); return location.replace('admin.html'); } if (SG.isStaff()) { id = vid; sess.byAdmin = true; if (!SG.isAdmin()) SG._ro = true; } }
       school0 = await SG.school(id); ld.set(62, 'Chargement de vos données…');
       if (!school0) return location.replace('login.html#finish');
       if (!cache || cache.id !== school0.id) ld.brand({ name: school0.name });
