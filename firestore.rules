@@ -166,6 +166,24 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Données analytiques anonymes (une session = un document au nom aléatoire) : n'importe qui peut créer sa session et la faire
+    // progresser (temps actif et pages vues, par petits pas), seul le personnel lit, seul l'administrateur supprime.
+    match /sess/{id} {
+      function str(v, n) { return v is string && v.size() <= n; }
+      allow read: if isStaff();
+      allow create: if request.resource.data.keys().hasOnly(['day', 'startMs', 'endMs', 'hr', 'dur', 'pages', 'entry', 'last', 'vid', 'ret', 'src', 'dev', 'os', 'br', 'model', 'sw', 'lang', 'tz', 'net', 'pwa', 'dark', 's_i', 's_l', 's_a', 's_p', 's_t'])
+        && request.resource.data.keys().hasAll(['day', 'startMs', 'dur', 'pages', 'entry'])
+        && str(request.resource.data.day, 10) && request.resource.data.dur == 0 && request.resource.data.pages == 1
+        && str(request.resource.data.entry, 24) && str(request.resource.data.last, 24) && str(request.resource.data.vid, 20) && str(request.resource.data.src, 40)
+        && str(request.resource.data.dev, 12) && str(request.resource.data.os, 20) && str(request.resource.data.br, 24) && str(request.resource.data.model, 28)
+        && str(request.resource.data.sw, 12) && str(request.resource.data.lang, 10) && str(request.resource.data.tz, 40) && str(request.resource.data.net, 6);
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dur', 'pages', 'last', 'endMs', 's_i', 's_l', 's_a', 's_p', 's_t'])
+        && request.resource.data.dur >= resource.data.dur && request.resource.data.dur - resource.data.dur <= 60 && request.resource.data.dur <= 43200
+        && request.resource.data.pages >= resource.data.pages && request.resource.data.pages - resource.data.pages <= 1 && request.resource.data.pages <= 300
+        && str(request.resource.data.last, 24);
+      allow delete: if isAdmin();
+    }
+
     // Administrateurs invités (lecture seule) : seul l'administrateur principal les gère ; chacun peut lire sa propre fiche
     match /admins/{email} {
       allow read: if isAdmin() || (signedIn() && request.auth.token.email.lower() == email);

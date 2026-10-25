@@ -58,6 +58,60 @@
     } catch (e) { }
   };
   SG.visits = async () => { const snap = await db.collection('vstats').get(); const l = []; snap.forEach(d => { const x = d.data(); l.push({ day: x.day || d.id, n: +x.n || 0, u: +x.u || 0 }); }); return l.sort((a, b) => a.day.localeCompare(b.day)); };
+
+  /* ---------- Données analytiques (anonymes) ----------
+     Une session = un onglet de navigateur. Un document sess/{id} aléatoire : appareil, système, navigateur, écran, langue, fuseau, source,
+     page d'entrée, pages vues, temps actif (le visiteur doit réellement interagir avec la page). Aucune adresse IP, aucun nom, aucune donnée personnelle. */
+  const uaInfo = () => {
+    const ua = navigator.userAgent || '', P = navigator.platform || '', touch = (navigator.maxTouchPoints || 0) > 1;
+    let os = 'Autre', ver = '';
+    if (/Windows NT 10/.test(ua)) { os = 'Windows'; ver = '10/11'; } else if (/Windows NT 6\.[23]/.test(ua)) { os = 'Windows'; ver = '8'; } else if (/Windows NT 6\.1/.test(ua)) { os = 'Windows'; ver = '7'; } else if (/Windows/.test(ua)) os = 'Windows';
+    else if (/Android/.test(ua)) { os = 'Android'; ver = (ua.match(/Android (\d+)/) || [])[1] || ''; }
+    else if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && touch)) { os = 'iOS'; ver = ((ua.match(/OS (\d+)[_\d]*/) || [])[1]) || ''; }
+    else if (/CrOS/.test(ua)) os = 'ChromeOS'; else if (/Mac OS X|Macintosh/.test(ua)) os = 'macOS'; else if (/Linux/.test(ua)) os = 'Linux';
+    let br = 'Autre';
+    if (/musical_ly|BytedanceWebview|TikTok|trill/i.test(ua)) br = 'TikTok (intégré)'; else if (/Instagram/.test(ua)) br = 'Instagram (intégré)'; else if (/FBAN|FBAV|FB_IAB/.test(ua)) br = 'Facebook (intégré)'; else if (/WhatsApp/.test(ua)) br = 'WhatsApp (intégré)';
+    else if (/Edg\//.test(ua)) br = 'Edge'; else if (/OPR\/|Opera/.test(ua)) br = 'Opera'; else if (/SamsungBrowser/.test(ua)) br = 'Samsung Internet'; else if (/Firefox|FxiOS/.test(ua)) br = 'Firefox';
+    else if (/CriOS|Chrome\//.test(ua)) br = 'Chrome'; else if (/Safari\//.test(ua)) br = 'Safari';
+    const w = Math.min(screen.width || 0, screen.height || 0) || innerWidth, dev = /iPad|Tablet/.test(ua) || (/Android/.test(ua) && !/Mobile/.test(ua)) || (os === 'iOS' && /iPad|Macintosh/.test(ua)) ? 'Tablette' : (/Mobi|iPhone|Android/.test(ua) ? 'Téléphone' : 'Ordinateur');
+    const model = ((ua.match(/;\s*([^;()]+?)\s+Build\//) || [])[1] || '').slice(0, 28);
+    return { dev, os: (os + (ver ? ' ' + ver : '')).slice(0, 20), br, model, sw: ((screen.width || innerWidth) + 'x' + (screen.height || innerHeight)).slice(0, 12), small: w };
+  };
+  const PAGES = { 'index.html': ['Accueil', 's_i'], '': ['Accueil', 's_i'], 'login.html': ['Connexion', 's_l'], 'app.html': ['Espace direction', 's_a'], 'parent.html': ['Espace parent', 's_p'], 'teacher.html': ['Espace enseignant', 's_t'] };
+  let hadVid = false; try { hadVid = !!localStorage.getItem('sg_vid'); } catch (e) { }
+  SG.trackSession = () => {
+    try {
+      if (!db || localStorage.getItem('sg_nocount') || /[?&](nocount|view=)/.test(location.search)) return;
+      const file = (location.pathname.split('/').pop() || ''); const pg = PAGES[file]; if (!pg) return;
+      const inc = n => fb.firestore.FieldValue.increment(n); const now = Date.now();
+      let sid = sessionStorage.getItem('sg_sid'), ref = sid ? db.collection('sess').doc(sid) : db.collection('sess').doc();
+      const isNew = !sid;
+      if (isNew) {
+        sid = ref.id; sessionStorage.setItem('sg_sid', sid);
+        const ret = hadVid; let vid = localStorage.getItem('sg_vid'); if (!vid) { vid = String(now); localStorage.setItem('sg_vid', vid); }
+        let src = 'Direct', rf = ''; try { rf = document.referrer ? new URL(document.referrer).hostname.replace(/^www\./, '') : ''; } catch (e) { }
+        const q = new URLSearchParams(location.search), utm = q.get('utm_source') || q.get('src') || '';
+        const info = uaInfo();
+        if (utm) src = utm.slice(0, 30); else if (rf && rf !== location.hostname) src = rf.slice(0, 40); else if (/TikTok/.test(info.br)) src = 'tiktok (intégré)';
+        const co = navigator.connection || {};
+        const d = { day: new Date(now).toISOString().slice(0, 10), startMs: now, endMs: now, hr: new Date(now).getHours(), dur: 0, pages: 1, entry: pg[0], last: pg[0], vid, ret, src, dev: info.dev, os: info.os, br: info.br, model: info.model, sw: info.sw, lang: String(navigator.language || '').slice(0, 10), tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || '').slice(0, 40), net: String(co.effectiveType || '').slice(0, 6), pwa: !!(window.matchMedia && matchMedia('(display-mode: standalone)').matches), dark: !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) };
+        d[pg[1]] = true; ref.set(d).catch(() => { });
+      } else {
+        ref = db.collection('sess').doc(sid); const u = { pages: inc(1), last: pg[0], endMs: now }; u[pg[1]] = true; ref.set(u, { merge: true }).catch(() => { });
+      }
+      /* temps actif : on compte par tranches de 20 s quand l'onglet est visible et que le visiteur a bougé dans les 60 dernières secondes */
+      let lastMove = now, total = 0; const mv = () => { lastMove = Date.now(); };
+      ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart', 'click'].forEach(ev => window.addEventListener(ev, mv, { passive: true, capture: true }));
+      const tick = setInterval(() => {
+        if (document.visibilityState !== 'visible' || Date.now() - lastMove > 60000) return;
+        if ((total += 20) > 7200) return clearInterval(tick);
+        ref.set({ dur: inc(20), endMs: Date.now() }, { merge: true }).catch(() => { });
+      }, 20000);
+    } catch (e) { }
+  };
+  SG.sessions = async (days = 90) => { const since = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10); const snap = await db.collection('sess').where('day', '>=', since).orderBy('day', 'desc').limit(4000).get(); const l = []; snap.forEach(d => l.push(Object.assign({ id: d.id }, d.data()))); return l; };
+  SG.onlineNow = async () => { const snap = await db.collection('sess').where('endMs', '>=', Date.now() - 90000).get(); const l = []; snap.forEach(d => l.push(d.data())); return l; };
+  if (db) { const go = () => SG.trackSession(); if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go(); }
   /* Contenu modifiable de la page d'accueil (global/site) : textes par identifiant et sections masquées. */
   const siteCache = () => { try { return JSON.parse(localStorage.getItem('sg_site') || 'null'); } catch (e) { return null; } };
   SG._site = siteCache() || { texts: {}, hidden: {} };
