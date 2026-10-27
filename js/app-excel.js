@@ -166,7 +166,7 @@
     } catch (e) { UI.toast(e.message || 'Fichier illisible.', 'err'); }
   }
   ACT['xl-imp'] = () => { let i = document.getElementById('xl-file'); if (!i) { i = document.createElement('input'); i.type = 'file'; i.id = 'xl-file'; i.accept = '.xlsx,.csv,.txt'; i.hidden = true; i.onchange = () => { const f = i.files[0]; i.value = ''; if (f) importFile(f); }; document.body.appendChild(i); } i.click(); };
-  A._xl = { buildXlsx, readXlsx, readCsv, parse };
+  A._xl = { buildXlsx, readXlsx, readCsv, parse, download, norm, toIso, phone, fname };
 
   /* ================= liste de classe et fiche d'appel ================= */
   const CSS = `body{font-family:'Public Sans',Arial,sans-serif;color:#1b2236;padding:6mm}h1{font-size:20px;margin-bottom:2px}h2{font-size:14px;font-weight:600;margin:0 0 10px}.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1f2a44;padding-bottom:8px;margin-bottom:12px}.hd small{color:#5a6378}
