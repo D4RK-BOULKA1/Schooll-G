@@ -124,3 +124,6 @@ footer.ft .adm{font-size:12px;border:1px solid var(--line2);padding:4px 10px;bor
   .auth{grid-template-columns:1fr}.auth .side{display:none}.sec{padding:64px 0}
 }
 @media(max-width:560px){.nav .r .btn-ghost,.nav .adm{display:none}.bw,.bth{grid-template-columns:repeat(2,1fr)}.mock .body{grid-template-columns:1fr}.mock .sd{display:none}.stats b{font-size:30px}.two>div{padding:26px}}
+
+.seo p{max-width:72ch;color:var(--ink2);line-height:1.75;margin:0 0 14px;font-size:16px}.seo p a{color:var(--orange-d);text-decoration:underline;text-underline-offset:3px}
+.seo .sh{display:block}.seo .sh h2{max-width:34ch}
