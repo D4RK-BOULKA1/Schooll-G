@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: $U/sitemap.xml
+Sitemap: https://school-g-smoky.vercel.app/sitemap.xml
