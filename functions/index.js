@@ -32,9 +32,16 @@ Réponds UNIQUEMENT par un objet JSON, sans texte autour, avec exactement ces cl
  "showMention": true si une mention ou décision du conseil figure,
  "showObs": true si un cadre d'observations figure,
  "showSign": true si des cases de signature figurent,
- "footer": texte de pied de page imprimé, ou "" (120 caractères max)
+ "footer": texte de pied de page imprimé, ou "" (120 caractères max),
+ "offL": texte exact du bloc d'en-tête GAUCHE (ministère, académie, direction...), une ligne par \n, 200 caractères max, ou "" s'il n'y en a pas. Ne mets PAS le nom de l'école ici,
+ "offR": texte exact du bloc d'en-tête DROIT (ex République du Mali / Un Peuple - Un But - Une Foi), une ligne par \n, 200 caractères max, ou "",
+ "cols": {"sub","coef","cls","compo","avg","total","appr"} : intitulés EXACTS des colonnes du tableau tels qu'imprimés (matière, coefficient, note de classe, composition, moyenne, total/points, appréciation), 24 caractères max chacun, omets la clé si la colonne n'existe pas,
+ "sigL": libellé exact de la signature de gauche (ex "Le Parent"), 40 caractères max, ou "",
+ "sigR": libellé exact de la signature de droite (ex "Le Directeur"), 40 caractères max, ou "",
+ "logoL": rectangle englobant le logo principal de l'école, en fractions de l'image entre 0 et 1 : {"x":bord gauche,"y":bord haut,"w":largeur,"h":hauteur}, ou null s'il n'y a pas de logo,
+ "logoR": rectangle englobant un deuxième logo ou emblème (ex armoiries), même format, ou null
 }
-Si un élément n'est pas visible, choisis la valeur la plus probable. Ne recopie aucun nom d'élève ni aucune note.`;
+Recopie les textes d'en-tête et les intitulés avec leur orthographe exacte. Si un élément n'est pas visible, choisis la valeur la plus probable. Ne recopie aucun nom d'élève ni aucune note.`;
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const BOOLS = ['zebra', 'showLogo', 'showCoef', 'showDevCompo', 'showTotal', 'showAppr', 'showRank', 'showClassAvg', 'showMinMax', 'showAbs', 'showMention', 'showObs', 'showSign'];
@@ -47,6 +54,10 @@ function clean(o) {
   if (['none', 'thin', 'double', 'thick'].includes(o.border)) t.border = o.border;
   BOOLS.forEach(k => { if (typeof o[k] === 'boolean') t[k] = o[k]; });
   if (typeof o.footer === 'string') t.footer = o.footer.trim().slice(0, 120);
+  ['offL', 'offR'].forEach(k => { if (typeof o[k] === 'string' && o[k].trim()) t[k] = o[k].replace(/[<>]/g, '').trim().slice(0, 200); });
+  ['sigL', 'sigR'].forEach(k => { if (typeof o[k] === 'string' && o[k].trim()) t[k] = o[k].replace(/[<>]/g, '').trim().slice(0, 40); });
+  if (o.cols && typeof o.cols === 'object') { const c = {}; ['sub', 'coef', 'cls', 'compo', 'avg', 'total', 'appr'].forEach(k => { if (typeof o.cols[k] === 'string' && o.cols[k].trim()) c[k] = o.cols[k].replace(/[<>]/g, '').trim().slice(0, 24); }); if (Object.keys(c).length) t.cols = c; }
+  ['logoL', 'logoR'].forEach(k => { const b = o[k]; if (b && [b.x, b.y, b.w, b.h].every(v => typeof v === 'number' && isFinite(v)) && b.w >= .03 && b.h >= .02 && b.x >= 0 && b.y >= 0 && b.x + b.w <= 1.02 && b.y + b.h <= 1.02) t[k] = { x: b.x, y: b.y, w: b.w, h: b.h }; });
   return t;
 }
 
@@ -71,7 +82,7 @@ exports.analyseBulletin = onCall({ secrets: [KEY], region: 'us-central1', timeou
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': KEY.value(), 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: MODEL, max_tokens: 700, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: mime, data: img } }, { type: 'text', text: PROMPT }] }] })
+    body: JSON.stringify({ model: MODEL, max_tokens: 1400, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: mime, data: img } }, { type: 'text', text: PROMPT }] }] })
   });
   if (!r.ok) { console.error('Claude API', r.status, (await r.text()).slice(0, 300)); throw new HttpsError('unavailable', 'Le service d\'analyse est indisponible.'); }
   const out = await r.json();

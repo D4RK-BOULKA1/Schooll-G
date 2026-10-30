@@ -17,7 +17,20 @@
     if (['none', 'thin', 'double', 'thick'].includes(o.border)) t.border = o.border;
     BOOLS.forEach(k => { if (typeof o[k] === 'boolean') t[k] = o[k]; });
     if (typeof o.footer === 'string') t.footer = o.footer.trim().slice(0, 120);
+    ['offL', 'offR'].forEach(k => { if (typeof o[k] === 'string' && o[k].trim()) t[k] = o[k].replace(/[<>]/g, '').trim().slice(0, 200); });
+    ['sigL', 'sigR'].forEach(k => { if (typeof o[k] === 'string' && o[k].trim()) t[k] = o[k].replace(/[<>]/g, '').trim().slice(0, 40); });
+    if (o.cols && typeof o.cols === 'object') { const c = {}; ['sub', 'coef', 'cls', 'compo', 'avg', 'total', 'appr'].forEach(k => { if (typeof o.cols[k] === 'string' && o.cols[k].trim()) c[k] = o.cols[k].replace(/[<>]/g, '').trim().slice(0, 24); }); if (Object.keys(c).length) t.cols = c; }
+    ['logoL', 'logoR'].forEach(k => { const b = o[k]; if (b && [b.x, b.y, b.w, b.h].every(v => typeof v === 'number' && isFinite(v)) && b.w >= .03 && b.h >= .02 && b.x >= 0 && b.y >= 0 && b.x + b.w <= 1.02 && b.y + b.h <= 1.02) t[k] = { x: b.x, y: b.y, w: b.w, h: b.h }; });
     return t;
+  };
+  /* découpe un logo dans la photo (rectangle en fractions) et le réduit pour le stockage */
+  const crop = (cv, b) => {
+    const x = Math.max(0, Math.floor(b.x * cv.width)), y = Math.max(0, Math.floor(b.y * cv.height));
+    const w = Math.min(cv.width - x, Math.ceil(b.w * cv.width)), h = Math.min(cv.height - y, Math.ceil(b.h * cv.height));
+    if (w < 20 || h < 20) return '';
+    const k = Math.min(1, 220 / Math.max(w, h)), c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+    const cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height); cx.drawImage(cv, x, y, w, h, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', .88);
   };
 
   function loadImage(file, max) {
@@ -63,21 +76,23 @@
     const m = UI.modal({ title: 'Importer le design d\'un bulletin', size: 'sm', body: '<p id="imMsg">Analyse de la photo en cours… Cela peut prendre quelques secondes.</p>', actions: [] });
     const say = t => { const e = m.el.querySelector('#imMsg'); if (e) e.innerHTML = t; };
     try {
-      const cv = await loadImage(file, 1400);
+      const cv = await loadImage(file, 2000);
       let theme = null, how = '';
       const fn = window.firebase && firebase.functions;
       if (fn) {
         try {
           const call = firebase.functions().httpsCallable('analyseBulletin', { timeout: 70000 });
-          const r = await call({ image: cv.toDataURL('image/jpeg', .82).split(',')[1], mime: 'image/jpeg' });
+          const r = await call({ image: cv.toDataURL('image/jpeg', .85).split(',')[1], mime: 'image/jpeg' });
           theme = clean(r.data && r.data.theme); how = 'ia';
+          ['logoL', 'logoR'].forEach(k => { if (theme[k]) { const u = crop(cv, theme[k]); if (u) theme[k] = u; else delete theme[k]; } });
           if (!theme.p && !theme.a) theme = null;
         } catch (e) {
           if (e && e.code === 'functions/resource-exhausted') { m.close(); return UI.toast(e.message || 'Limite d\'analyses atteinte pour aujourd\'hui.', 'err'); }
         }
       }
       if (!theme) { theme = palette(cv); how = 'couleurs'; if (!theme.p && !theme.a) throw new Error('Aucune couleur exploitable dans cette photo. Prenez-la sur une table claire, bien éclairée.'); }
-      D.customTheme = Object.assign(base(), theme); ST.bTheme = 'custom'; A.save(); m.close(); A.rerender();
+      const b0 = base(); ['logoL', 'logoR', 'offL', 'offR', 'cols', 'sigL', 'sigR'].forEach(k => delete b0[k]);
+      D.customTheme = Object.assign(b0, theme); ST.bTheme = 'custom'; A.save(); m.close(); A.rerender();
       UI.toast(how === 'ia' ? 'Design du bulletin copié. Ajustez-le si besoin dans « Thème personnalisé ».' : 'Analyse automatique indisponible pour le moment : seules les couleurs ont été reprises. Réglez le reste dans « Thème personnalisé ».', 'ok');
     } catch (e) {
       say('<b style="color:var(--red)">' + esc(e.message || String(e)) + '</b>');

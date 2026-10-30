@@ -48,7 +48,7 @@
 .bl.thin{border:1px solid var(--p)}.bl.double{border:4px double var(--p)}.bl.thick{border:3px solid var(--p);outline:1px solid var(--a);outline-offset:-8px}
 .bl-h{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
 .bl .off{display:flex;justify-content:space-between;align-items:flex-start;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em}
-.bl .off div{text-align:center;line-height:1.35}.bl .off i{display:block;font-style:normal;font-size:9.5px;margin-top:2px}
+.bl .off-lg{width:64px;height:64px;object-fit:contain;align-self:center}.bl .off div{text-align:center;line-height:1.35}.bl .off i{display:block;font-style:normal;font-size:9.5px;margin-top:2px}
 .bl-brand{display:flex;align-items:center;gap:12px}
 .bl.h-center .bl-brand{flex-direction:column;text-align:center}
 .bl-brand img{width:60px;height:60px;object-fit:contain}
@@ -85,18 +85,21 @@
     const R = DOC.results(D, st.classId, period); const me = R.list.find(x => x.student.id === sid);
     let abs = 0, ret = 0; Object.values(D.attendance).forEach(day => { const a = day[sid]; if (a) { if (a.s === 'A') abs++; else if (a.s === 'R') ret++; } });
     const bd = th.border === 'none' ? '' : th.border;
+    const ml = t => String(t).split('\n').filter(x => x.trim()).map((x, i) => i ? `<i>${esc(x)}</i>` : esc(x)).join('');
+    const lgL = th.logoL || S.logo, lgR = th.header === 'official' && th.showLogo !== false ? th.logoR : '';
+    const L = Object.assign({ sub: 'Matière', coef: 'Coef', cls: 'Classe', compo: 'Compo', avg: 'Moyenne', total: 'Total', appr: 'Appréciation' }, th.cols || {});
     const head = `<header class="bl-h">
-      ${th.header === 'official' ? `<div class="off"><div>${esc(S.ministry || '')}<i>${esc(S.academy || '')}</i></div><div>République du Mali<i>Un Peuple – Un But – Une Foi</i></div></div>` : ''}
-      <div class="bl-brand">${th.showLogo && S.logo ? `<img src="${S.logo}" alt="">` : ''}<div><h1>${esc(S.name)}</h1><p>${esc([S.address, S.city, S.phone].filter(Boolean).join(' · '))}${S.motto ? '<br>' + esc(S.motto) : ''}</p></div></div>
+      ${th.header === 'official' ? `<div class="off"><div>${th.offL ? ml(th.offL) : esc(S.ministry || '') + '<i>' + esc(S.academy || '') + '</i>'}</div>${lgR ? `<img class="off-lg" src="${lgR}" alt="">` : ''}<div>${th.offR ? ml(th.offR) : 'République du Mali<i>Un Peuple – Un But – Une Foi</i>'}</div></div>` : ''}
+      <div class="bl-brand">${th.showLogo && lgL ? `<img src="${lgL}" alt="">` : ''}<div><h1>${esc(S.name)}</h1><p>${esc([S.address, S.city, S.phone].filter(Boolean).join(' · '))}${S.motto ? '<br>' + esc(S.motto) : ''}</p></div></div>
       <div class="bl-title"><h2>${esc(th.title || 'BULLETIN DE NOTES')}</h2><span>${esc(period)} · ${esc(S.year)}</span></div></header>`;
     const idb = `<section class="bl-id"><div><small>Nom et prénoms</small><b>${esc(st.last.toUpperCase() + ' ' + st.first)}</b></div><div><small>Matricule</small><b>${esc(st.matricule)}</b></div><div><small>Classe</small><b>${esc(cl ? cl.name : '')}</b></div><div><small>Né(e) le</small><b>${esc(fdate(st.birth))}${st.birthplace ? ' à ' + esc(st.birthplace) : ''}</b></div><div><small>Sexe</small><b>${st.sex === 'F' ? 'Féminin' : 'Masculin'}</b></div><div><small>Effectif</small><b>${R.count}</b></div></section>`;
-    const cols = ['Matière']; if (th.showCoef) cols.push('Coef'); if (th.showDevCompo) { cols.push('Classe'); cols.push('Compo'); } cols.push('Moyenne'); if (th.showTotal) cols.push('Total'); if (th.showAppr) cols.push('Appréciation');
+    const cols = [L.sub]; if (th.showCoef) cols.push(L.coef); if (th.showDevCompo) { cols.push(L.cls); cols.push(L.compo); } cols.push(L.avg); if (th.showTotal) cols.push(L.total); if (th.showAppr) cols.push(L.appr);
     const body = me ? me.rows.map(r => `<tr><td>${esc(r.sub.name)}</td>${th.showCoef ? `<td>${r.coef}</td>` : ''}${th.showDevCompo ? `<td>${r2(r.dev)}</td><td>${r2(r.comp)}</td>` : ''}<td class="m">${r2(r.avg)}</td>${th.showTotal ? `<td>${r2(r.total)}</td>` : ''}${th.showAppr ? `<td class="ap">${DOC.appr(r.avg)}</td>` : ''}</tr>`).join('') : '';
     const span = 1 + (th.showCoef ? 1 : 0) + (th.showDevCompo ? 2 : 0);
     const foot = me ? `<tfoot><tr><td colspan="${span}">TOTAL / MOYENNE GÉNÉRALE</td><td class="m">${r2(me.mean)}</td>${th.showTotal ? `<td>${r2(me.total)}</td>` : ''}${th.showAppr ? `<td class="ap">${DOC.appr(me.mean)}</td>` : ''}</tr></tfoot>` : '';
     const sum = `<section class="bl-sum"><div><small>Moyenne générale</small><b>${me && me.mean != null ? r2(me.mean) + ' / 20' : '—'}</b></div>${th.showRank ? `<div><small>Rang</small><b>${me && me.rank ? me.rank + (me.rank === 1 ? 'er' : 'e') + ' / ' + R.count : '—'}</b></div>` : ''}${th.showClassAvg ? `<div><small>Moyenne de la classe</small><b>${r2(R.classMean) || '—'}</b></div>` : ''}${th.showMinMax ? `<div><small>Plus forte / faible</small><b>${r2(R.max) || '—'} / ${r2(R.min) || '—'}</b></div>` : ''}</section>`;
     const ment = `<section class="bl-ment">${th.showAbs ? `<div><small>Assiduité</small>${abs} absence(s) · ${ret} retard(s)</div>` : ''}${th.showMention ? `<div><small>Mention du conseil</small><b>${DOC.mention(me && me.mean)}</b></div>` : ''}${th.showObs ? `<div><small>Observations</small>&nbsp;</div>` : ''}</section>`;
-    const sign = th.showSign ? `<section class="bl-sign"><div>Le Parent / Tuteur</div><div>Le Directeur</div></section>` : '';
+    const sign = th.showSign ? `<section class="bl-sign"><div>${esc(th.sigL || 'Le Parent / Tuteur')}</div><div>${esc(th.sigR || 'Le Directeur')}</div></section>` : '';
     return `<div class="bl ${th.font} ${bd} ${th.zebra ? 'zebra' : ''} h-${th.header === 'center' ? 'center' : 'left'}" style="--p:${th.p};--a:${th.a}">${head}${idb}<table><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${body || `<tr><td colspan="${cols.length}" style="text-align:center;padding:18px">Aucune matière configurée pour cette classe.</td></tr>`}</tbody>${foot}</table>${sum}${ment}${sign}${th.footer ? `<div class="bl-foot">${esc(th.footer)}</div>` : ''}</div>`;
   };
 

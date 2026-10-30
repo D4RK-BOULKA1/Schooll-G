@@ -41,7 +41,9 @@
     ['font', 'Police', 'select', [['sans', 'Moderne (Public Sans)'], ['serif', 'Classique (Fraunces)']]],
     ['header', 'En-tête', 'select', [['left', 'Logo à gauche'], ['center', 'Centré'], ['official', 'Officiel (République du Mali)']]],
     ['border', 'Cadre', 'select', [['none', 'Sans cadre'], ['thin', 'Simple'], ['double', 'Double'], ['thick', 'Épais']]],
-    ['footer', 'Pied de page', 'text']
+    ['footer', 'Pied de page', 'text'],
+    ['offL', 'En-tête gauche (une ligne par ligne, mode Officiel)', 'textarea'], ['offR', 'En-tête droit (une ligne par ligne, mode Officiel)', 'textarea'],
+    ['sigL', 'Signature de gauche', 'text'], ['sigR', 'Signature de droite', 'text']
   ];
   const CT_TOGGLES = [['zebra', 'Lignes alternées'], ['showLogo', 'Logo de l\'école'], ['showCoef', 'Colonne coefficient'], ['showDevCompo', 'Colonnes classe et composition'], ['showTotal', 'Colonne total'], ['showAppr', 'Appréciation par matière'], ['showRank', 'Rang'], ['showClassAvg', 'Moyenne de la classe'], ['showMinMax', 'Plus forte et plus faible moyenne'], ['showAbs', 'Absences et retards'], ['showMention', 'Mention du conseil'], ['showObs', 'Observations'], ['showSign', 'Signatures']];
   V.bulletins = () => {
@@ -60,7 +62,7 @@
       document.getElementById('ctf').innerHTML = CT_FIELDS.map(([k, l, t, o]) => UI.fields([t === 'select' ? { name: k, label: l, type: 'select', options: o } : { name: k, label: l, type: t, cls: t === 'color' ? 'half' : '' }], ct)).join('') + `<div class="fld"><label>Rubriques à afficher</label>${CT_TOGGLES.map(([k, l]) => `<label class="chk" style="margin-bottom:7px"><input type="checkbox" name="${k}" ${ct[k] ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>`;
     };
     if (ST.bTheme === 'custom') cust();
-    const save = () => { D.customTheme = UI.read(document.getElementById('ctf')); A.save(); draw(); };
+    const save = () => { D.customTheme = Object.assign({}, D.customTheme, UI.read(document.getElementById('ctf'))); A.save(); draw(); };
     const cf = document.getElementById('ctf'); cf.addEventListener('input', save); cf.addEventListener('change', save);
     draw();
   };
