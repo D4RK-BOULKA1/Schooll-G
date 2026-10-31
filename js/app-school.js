@@ -47,16 +47,18 @@
   ];
   const CT_TOGGLES = [['zebra', 'Lignes alternées'], ['showLogo', 'Logo de l\'école'], ['showCoef', 'Colonne coefficient'], ['showDevCompo', 'Colonnes classe et composition'], ['showTotal', 'Colonne total'], ['showAppr', 'Appréciation par matière'], ['showRank', 'Rang'], ['showClassAvg', 'Moyenne de la classe'], ['showMinMax', 'Plus forte et plus faible moyenne'], ['showAbs', 'Absences et retards'], ['showMention', 'Mention du conseil'], ['showObs', 'Observations'], ['showSign', 'Signatures']];
   V.bulletins = () => {
-    ST.bCls = ST.bCls || firstCls(); ST.bPer = ST.bPer || D.settings.periods[0]; ST.bTheme = ST.bTheme || 'classic';
+    ST.bCls = ST.bCls || firstCls(); ST.bPer = ST.bPer || D.settings.periods[0]; ST.bTheme = ST.bTheme || (D.bulActive && (D.bulTpls || []).some(t => t.id === D.bulActive) ? 'tpl:' + D.bulActive : 'classic');
     const studs = D.students.filter(s => s.classId === ST.bCls && s.status !== 'radié').sort((a, b) => A.name(a).localeCompare(A.name(b)));
     if (!studs.find(s => s.id === ST.bStu)) ST.bStu = studs[0] && studs[0].id;
-    const themes = [...DOC.THEMES.map(t => [t.id, t.name]), ['custom', 'Personnalisé']];
-    A.view(`${A.head('Bulletins', 'Cinq thèmes prêts à imprimer et un thème entièrement personnalisable', A.btn('bul-import', 'Importer un design (photo)', { icon: 'up' }) + A.btn('bul-print', 'Imprimer ce bulletin', { icon: 'print' }) + A.btn('bul-all', 'Imprimer toute la classe', { cls: 'btn-primary', icon: 'print' }))}
+    const themes = [...DOC.THEMES.map(t => [t.id, t.name]), ['custom', 'Personnalisé'], ...(D.bulTpls || []).map(t => ['tpl:' + t.id, '★ ' + t.name])];
+    const tplCur = () => ST.bTheme.startsWith('tpl:') ? (D.bulTpls || []).find(t => 'tpl:' + t.id === ST.bTheme) : null;
+    if (ST.bTheme.startsWith('tpl:') && !tplCur()) ST.bTheme = 'classic';
+    A.view(`${A.head('Bulletins', 'Cinq thèmes prêts à imprimer, un thème personnalisable et un éditeur libre pour créer vos propres modèles', A.btn('bul-edit', 'Éditeur de bulletin') + A.btn('bul-import', 'Importer un design (photo)', { icon: 'up' }) + A.btn('bul-print', 'Imprimer ce bulletin', { icon: 'print' }) + A.btn('bul-all', 'Imprimer toute la classe', { cls: 'btn-primary', icon: 'print' }))}
     <div class="tools">${A.sel('bCls', A.classOpts(), ST.bCls, { re: true })}${A.sel('bPer', D.settings.periods.map(p => [p, p]), ST.bPer, { re: true })}${A.sel('bStu', studs.map(s => [s.id, A.name(s)]), ST.bStu, { re: true })}</div>
     <div class="sw" style="margin-bottom:16px">${themes.map(([id, n]) => `<button class="${ST.bTheme === id ? 'on' : ''}" data-act="bth" data-id="${id}">${esc(n)}</button>`).join('')}</div>
-    <div class="g21" style="align-items:start"><div class="bl-wrap" id="prev"></div><div class="card" id="cust" ${ST.bTheme === 'custom' ? '' : 'hidden'}><div class="ch"><h3>Thème personnalisé</h3>${A.btn('ct-base', 'Partir d\'un modèle', { sm: true })}</div><div class="cb"><div class="frm" id="ctf"></div></div></div></div>`);
+    <div class="g21" style="align-items:start"><div class="bl-wrap" id="prev"></div><div class="card" id="tplc" ${tplCur() ? '' : 'hidden'}><div class="ch"><h3>Modèle enregistré</h3></div><div class="cb"><p class="small muted" style="margin-bottom:12px"><b>${esc(tplCur() ? tplCur().name : '')}</b><br>Créé avec l'éditeur. Il est utilisé pour les bulletins imprimés et dans l'espace parent.</p><div style="display:flex;gap:8px;flex-wrap:wrap">${A.btn('tpl-edit', 'Modifier', { cls: 'btn-primary', sm: true })}${A.btn('tpl-dup', 'Dupliquer', { sm: true })}${A.btn('tpl-del', 'Supprimer', { sm: true })}</div></div></div><div class="card" id="cust" ${ST.bTheme === 'custom' ? '' : 'hidden'}><div class="ch"><h3>Thème personnalisé</h3>${A.btn('ct-base', 'Partir d\'un modèle', { sm: true })}</div><div class="cb"><div class="frm" id="ctf"></div></div></div></div>`);
     const th = () => DOC.theme(D, ST.bTheme);
-    const draw = () => { document.getElementById('prev').innerHTML = `<style>${DOC.css}</style>` + (ST.bStu ? DOC.bulletin(D, A.school(), ST.bStu, ST.bPer, th()) : '<div class="empty">Sélectionnez une classe contenant des élèves.</div>'); };
+    const draw = () => { const pv = document.getElementById('prev'); pv.innerHTML = `<style>${DOC.css}${DOC.freeCss}</style>` + (ST.bStu ? DOC.bulletinAny(D, A.school(), ST.bStu, ST.bPer, th(), tplCur()) : '<div class="empty">Sélectionnez une classe contenant des élèves.</div>'); DOC.fitFree(pv); };
     const cust = () => {
       const ct = DOC.theme(D, 'custom');
       document.getElementById('ctf').innerHTML = CT_FIELDS.map(([k, l, t, o]) => UI.fields([t === 'select' ? { name: k, label: l, type: 'select', options: o } : { name: k, label: l, type: t, cls: t === 'color' ? 'half' : '' }], ct)).join('') + `<div class="fld"><label>Rubriques à afficher</label>${CT_TOGGLES.map(([k, l]) => `<label class="chk" style="margin-bottom:7px"><input type="checkbox" name="${k}" ${ct[k] ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>`;
@@ -66,9 +68,19 @@
     const cf = document.getElementById('ctf'); cf.addEventListener('input', save); cf.addEventListener('change', save);
     draw();
   };
-  ACT.bth = el => { ST.bTheme = el.dataset.id; if (ST.bTheme === 'custom' && !D.customTheme) { D.customTheme = Object.assign({}, DOC.THEMES[0]); A.save(); } A.rerender(); };
+  ACT.bth = el => { ST.bTheme = el.dataset.id; D.bulActive = ST.bTheme.startsWith('tpl:') ? ST.bTheme.slice(4) : null; A.save(); if (ST.bTheme === 'custom' && !D.customTheme) { D.customTheme = Object.assign({}, DOC.THEMES[0]); A.save(); } A.rerender(); };
   ACT['ct-base'] = () => UI.formModal({ title: 'Partir d\'un modèle', size: 'sm', submit: 'Appliquer', fields: [{ name: 'id', label: 'Modèle', type: 'select', options: DOC.THEMES.map(t => [t.id, t.name]) }], onSubmit: v => { D.customTheme = Object.assign({}, DOC.THEMES.find(t => t.id === v.id)); delete D.customTheme.id; delete D.customTheme.name; A.save(); A.rerender(); } });
-  const printBul = ids => { const th = DOC.theme(D, ST.bTheme); U.print(ids.map(id => DOC.bulletin(D, A.school(), id, ST.bPer, th)).join(''), DOC.css); };
+  const curTpl = () => ST.bTheme.startsWith('tpl:') ? (D.bulTpls || []).find(t => 'tpl:' + t.id === ST.bTheme) : null;
+  const printBul = ids => { const th = DOC.theme(D, ST.bTheme), tp = curTpl(); U.print(ids.map(id => DOC.bulletinAny(D, A.school(), id, ST.bPer, th, tp)).join(''), DOC.cssAny(tp)); };
+  ACT['bul-edit'] = () => {
+    const nSub = (D.subjects[ST.bCls] || []).length, tp = curTpl();
+    UI.formModal({ title: 'Éditeur de bulletin', size: 'sm', submit: 'Ouvrir l\'éditeur', values: { from: 'cur' },
+      fields: [{ name: 'from', label: 'Partir de', type: 'select', options: [['cur', tp ? 'Le modèle affiché : ' + tp.name : 'Le thème actuellement affiché'], ['blank', 'Une page blanche']] }],
+      onSubmit: v => { const start = v.from === 'blank' ? { name: 'Nouveau modèle', bg: '#ffffff', els: [] } : tp ? Object.assign({}, JSON.parse(JSON.stringify(tp)), { id: null, name: 'Copie de ' + tp.name }) : A.bulTplNew(DOC.theme(D, ST.bTheme), nSub); setTimeout(() => A.bulEditor.open(start), 50); } });
+  };
+  ACT['tpl-edit'] = () => { const tp = curTpl(); if (tp) A.bulEditor.open(tp); };
+  ACT['tpl-dup'] = () => { const tp = curTpl(); if (!tp) return; const c = JSON.parse(JSON.stringify(tp)); c.id = 'm' + Math.random().toString(36).slice(2, 9); c.name = 'Copie de ' + tp.name; D.bulTpls.push(c); ST.bTheme = 'tpl:' + c.id; D.bulActive = c.id; A.save(); A.rerender(); UI.toast('Modèle dupliqué.', 'ok'); };
+  ACT['tpl-del'] = () => { const tp = curTpl(); if (!tp) return; UI.confirm('Supprimer le modèle « ' + esc(tp.name) + ' » ? Cette action est définitive.', () => { D.bulTpls = D.bulTpls.filter(x => x.id !== tp.id); if (D.bulActive === tp.id) D.bulActive = null; ST.bTheme = 'classic'; A.save(); A.rerender(); UI.toast('Modèle supprimé.', 'ok'); }); };
   ACT['bul-print'] = () => { if (!ST.bStu) return UI.toast('Aucun élève sélectionné.', 'err'); printBul([ST.bStu]); };
   ACT['bul-all'] = () => { const ids = D.students.filter(s => s.classId === ST.bCls && s.status !== 'radié').map(s => s.id); if (!ids.length) return UI.toast('Aucun élève dans cette classe.', 'err'); printBul(ids); };
 

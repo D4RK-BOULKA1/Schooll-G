@@ -103,6 +103,140 @@
     return `<div class="bl ${th.font} ${bd} ${th.zebra ? 'zebra' : ''} h-${th.header === 'center' ? 'center' : 'left'}" style="--p:${th.p};--a:${th.a}">${head}${idb}<table><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${body || `<tr><td colspan="${cols.length}" style="text-align:center;padding:18px">Aucune matière configurée pour cette classe.</td></tr>`}</tbody>${foot}</table>${sum}${ment}${sign}${th.footer ? `<div class="bl-foot">${esc(th.footer)}</div>` : ''}</div>`;
   };
 
+
+  /* ---------- bulletin libre : modèles créés avec l'éditeur (éléments positionnés sur une page A4) ---------- */
+  DOC.PAGE = { w: 794, h: 1122 };
+  DOC.FONTS = { pub: "'Public Sans',system-ui,sans-serif", fra: "'Fraunces',Georgia,serif", ari: 'Arial,Helvetica,sans-serif', tim: "'Times New Roman',Times,serif", geo: 'Georgia,serif', ver: 'Verdana,Geneva,sans-serif', tre: "'Trebuchet MS',sans-serif", cou: "'Courier New',monospace" };
+  DOC.FONT_NAMES = { pub: 'Public Sans', fra: 'Fraunces', ari: 'Arial', tim: 'Times New Roman', geo: 'Georgia', ver: 'Verdana', tre: 'Trebuchet MS', cou: 'Courier New' };
+  DOC.VARS = [['ecole', 'Nom de l\'école'], ['adresse', 'Adresse'], ['ville', 'Ville'], ['tel', 'Téléphone de l\'école'], ['annee', 'Année scolaire'], ['periode', 'Période'], ['ministere', 'Ministère'], ['academie', 'Académie / direction'], ['nom', 'Nom de l\'élève'], ['prenoms', 'Prénoms de l\'élève'], ['matricule', 'Matricule'], ['classe', 'Classe'], ['naissance', 'Date de naissance'], ['lieu', 'Lieu de naissance'], ['sexe', 'Sexe'], ['effectif', 'Effectif de la classe'], ['moyenne', 'Moyenne générale'], ['rang', 'Rang'], ['moyclasse', 'Moyenne de la classe'], ['max', 'Plus forte moyenne'], ['min', 'Plus faible moyenne'], ['mention', 'Mention du conseil'], ['appreciation', 'Appréciation générale'], ['absences', 'Nombre d\'absences'], ['retards', 'Nombre de retards'], ['date', 'Date du jour']];
+
+  DOC.freeVars = (D, sid, period) => {
+    const S = D.settings || {}, st = D.students.find(s => s.id === sid), V = { ecole: S.name, adresse: S.address, ville: S.city, tel: S.phone, annee: S.year, periode: period, ministere: S.ministry, academie: S.academy, date: fdate(new Date().toISOString().slice(0, 10)) };
+    if (!st) return V;
+    const cl = D.classes.find(c => c.id === st.classId), R = DOC.results(D, st.classId, period), me = R.list.find(x => x.student.id === sid);
+    let abs = 0, ret = 0; Object.values(D.attendance || {}).forEach(day => { const a = day[sid]; if (a) { if (a.s === 'A') abs++; else if (a.s === 'R') ret++; } });
+    return Object.assign(V, { nom: (st.last || '').toUpperCase(), prenoms: st.first, matricule: st.matricule, classe: cl ? cl.name : '', naissance: fdate(st.birth), lieu: st.birthplace || '', sexe: st.sex === 'F' ? 'Féminin' : 'Masculin', effectif: R.count, moyenne: me && me.mean != null ? r2(me.mean) : '—', rang: me && me.rank ? me.rank + (me.rank === 1 ? 'er' : 'e') : '—', moyclasse: r2(R.classMean) || '—', max: r2(R.max) || '—', min: r2(R.min) || '—', mention: me ? DOC.mention(me.mean) : '', appreciation: me ? DOC.appr(me.mean) : '', absences: abs, retards: ret });
+  };
+
+  DOC.freeCss = `
+.fbw{width:794px;margin:0 auto}
+.fb{position:relative;width:794px;height:1122px;overflow:hidden;box-sizing:border-box;background:#fff;color:#14213D;page-break-after:always}
+.fbw:last-child .fb{page-break-after:auto}
+.fb .fe{position:absolute;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column}
+.fb .fe.ft{overflow:visible;display:block}
+.fb .fe .tx{width:100%;white-space:pre-wrap;word-break:break-word}
+.fb .fe img{width:100%;height:100%;display:block}
+.fb .fe.ph{border:1.5px dashed #b9b2a0;color:#8a8473;align-items:center;justify-content:center;font:600 12px 'Public Sans',sans-serif;background:rgba(0,0,0,.03)}
+.fb table{border-collapse:collapse;width:100%}
+.fb th,.fb td{text-align:center}.fb th:first-child,.fb td:first-child{text-align:left}
+@media print{.fbw{margin:0}}
+`;
+
+  DOC.freeEl = (e, V, ctx) => {
+    const T = s => esc(String(s == null ? '' : s).replace(/\{\{(\w+)\}\}/g, (m, k) => V[k] == null ? '' : V[k]));
+    let st = `left:${e.x}px;top:${e.y}px;width:${e.w}px;`;
+    if (e.type !== 'table') st += `height:${e.h}px;`;
+    if (e.op != null && e.op < 1) st += `opacity:${e.op};`;
+    if (e.type !== 'table') {
+      if (e.bg) st += `background:${e.bg};`;
+      if (e.bw) st += `border:${e.bw}px ${e.bs || 'solid'} ${e.bc || '#14213D'};`;
+      if (e.br) st += `border-radius:${e.br}px;`;
+    }
+    const idAttr = ` data-id="${e.id}"`;
+    if (e.type === 'text') {
+      const va = e.va === 'middle' ? 'center' : e.va === 'bottom' ? 'flex-end' : 'flex-start';
+      const ts = `font-family:${DOC.FONTS[e.font] || DOC.FONTS.pub};font-size:${e.size || 14}px;color:${e.color || '#14213D'};text-align:${e.align || 'left'};line-height:${e.lh || 1.3};letter-spacing:${e.ls || 0}px;${e.b ? 'font-weight:700;' : ''}${e.i ? 'font-style:italic;' : ''}${e.u ? 'text-decoration:underline;' : ''}${e.up ? 'text-transform:uppercase;' : ''}padding:${e.pad == null ? 4 : e.pad}px;`;
+      return `<div class="fe"${idAttr} style="${st}justify-content:${va}"><div class="tx" style="${ts}">${T(e.text)}</div></div>`;
+    }
+    if (e.type === 'image') {
+      const S = ctx.S || {}, src = e.kind === 'logo' ? S.logo : e.kind === 'photo' ? ctx.photo : e.src;
+      if (!src) return ctx.edit ? `<div class="fe ph"${idAttr} style="${st}">${e.kind === 'logo' ? 'Logo de l\'école' : e.kind === 'photo' ? 'Photo' : 'Image'}</div>` : '';
+      return `<div class="fe"${idAttr} style="${st}"><img src="${src}" alt="" style="object-fit:${e.fit || 'contain'};border-radius:${e.br ? Math.max(0, e.br - (e.bw || 0)) : 0}px"></div>`;
+    }
+    if (e.type === 'rect') return `<div class="fe"${idAttr} style="${st}"></div>`;
+    if (e.type === 'table') {
+      const C = e.cols || {}, L = Object.assign({ sub: 'Matière', coef: 'Coef', cls: 'Classe', compo: 'Compo', avg: 'Moyenne', total: 'Total', appr: 'Appréciation' }, e.labels || {});
+      const fs = e.size || 11.5, pad = e.pad == null ? 5 : e.pad, lc = e.lc || '#d9d9d9', col = e.color || '#14213D';
+      const heads = [['sub', 1], ['coef', C.coef], ['cls', C.cls], ['compo', C.compo], ['avg', C.avg !== false], ['total', C.total], ['appr', C.appr]].filter(x => x[1]);
+      let rows = ctx.rows && ctx.rows.length ? ctx.rows : (ctx.edit ? [1, 2, 3, 4, 5, 6].map(i => ({ sub: { name: 'Matière ' + i }, coef: 1, dev: null, comp: null, avg: null, total: null })) : []);
+      const cell = (r, k) => k === 'sub' ? esc(r.sub.name) : k === 'coef' ? r.coef : k === 'cls' ? r2(r.dev) : k === 'compo' ? r2(r.comp) : k === 'avg' ? r2(r.avg) : k === 'total' ? r2(r.total) : DOC.appr(r.avg);
+      const hs = `background:${e.headBg || '#14213D'};color:${e.headColor || '#fff'};padding:${pad + 1}px 6px;border:1px solid ${lc};font-weight:700;font-size:${fs - 1}px;text-transform:uppercase;letter-spacing:.04em`;
+      const body = rows.map((r, i) => `<tr>${heads.map(([k]) => `<td style="padding:${pad}px 6px;border:1px solid ${lc};${i % 2 && e.zebra ? 'background:rgba(0,0,0,.04);' : ''}${k === 'avg' ? 'font-weight:700;' : ''}">${cell(r, k)}</td>`).join('')}</tr>`).join('');
+      const span = heads.filter(h => ['sub', 'coef', 'cls', 'compo'].includes(h[0])).length;
+      const foot = e.foot !== false && ctx.me ? `<tr>${heads.map(([k], i) => i === 0 ? `<td colspan="${span}" style="padding:${pad}px 6px;border:1px solid ${lc};font-weight:700">TOTAL / MOYENNE GÉNÉRALE</td>` : i < span ? '' : `<td style="padding:${pad}px 6px;border:1px solid ${lc};font-weight:700">${k === 'avg' ? r2(ctx.me.mean) : k === 'total' ? r2(ctx.me.total) : k === 'appr' ? DOC.appr(ctx.me.mean) : ''}</td>`).join('')}</tr>` : '';
+      return `<div class="fe ft"${idAttr} style="${st}"><table style="font-family:${DOC.FONTS[e.font] || DOC.FONTS.pub};font-size:${fs}px;color:${col}"><thead><tr>${heads.map(([k]) => `<th style="${hs}">${esc(L[k])}</th>`).join('')}</tr></thead><tbody>${body}</tbody>${foot ? `<tfoot>${foot}</tfoot>` : ''}</table></div>`;
+    }
+    return '';
+  };
+
+  /* ctx.raw : la page seule (éditeur) ; ctx.edit : repères visibles pour les éléments vides */
+  DOC.bulletinFree = (D, school, sid, period, tpl, ctx) => {
+    ctx = Object.assign({}, ctx); ctx.S = D.settings || {};
+    const st = D.students.find(s => s.id === sid), V = DOC.freeVars(D, sid, period);
+    if (st) { ctx.photo = st.photo; const R = DOC.results(D, st.classId, period), me = R.list.find(x => x.student.id === sid); ctx.me = me; ctx.rows = me ? me.rows : []; }
+    const page = `<div class="fb" style="background:${tpl.bg || '#fff'}">${(tpl.els || []).map(e => DOC.freeEl(e, V, ctx)).join('')}</div>`;
+    return ctx.raw ? page : `<div class="fbw">${page}</div>`;
+  };
+
+  /* adapte la page A4 à la largeur disponible (aperçu à l'écran, téléphone des parents) */
+  DOC.fitFree = root => {
+    (root || document).querySelectorAll('.fbw').forEach(w => {
+      const f = w.firstElementChild, host = w.parentElement; if (!f || !host) return;
+      const k = Math.min(1, Math.max(.25, (host.clientWidth - 40) / DOC.PAGE.w));
+      w.style.width = Math.round(DOC.PAGE.w * k) + 'px'; w.style.height = Math.round(DOC.PAGE.h * k) + 'px';
+      f.style.transformOrigin = 'top left'; f.style.transform = k < 1 ? `scale(${k})` : '';
+    });
+  };
+
+  DOC.bulletinAny = (D, school, sid, period, th, tpl) => tpl ? DOC.bulletinFree(D, school, sid, period, tpl) : DOC.bulletin(D, school, sid, period, th);
+  DOC.cssAny = tpl => tpl ? DOC.freeCss + '@page{size:A4;margin:0}' : DOC.css;
+
+  /* modèle de départ construit à partir d'un thème (standard, personnalisé ou importé d'une photo) */
+  DOC.starter = (th, S, nSub) => {
+    th = th || DOC.THEMES[0]; S = S || {}; nSub = Math.max(6, Math.min(16, nSub || 8));
+    const id = () => 'e' + Math.random().toString(36).slice(2, 9), els = [], add = o => els.push(Object.assign({ id: id() }, o));
+    const p = th.p || '#14213D', a = th.a || '#E4572E', f = th.font === 'serif' ? 'fra' : 'pub', off = th.header === 'official';
+    const txt = (x, y, w, h, text, o) => add(Object.assign({ type: 'text', x, y, w, h, text, font: f, size: 12, color: p, align: 'left', va: 'top', lh: 1.3, ls: 0, pad: 2 }, o));
+    const box = (x, y, w, h, o) => add(Object.assign({ type: 'rect', x, y, w, h, bg: '', bw: 1, bc: p, bs: 'solid', br: 0 }, o));
+    if (th.border && th.border !== 'none') box(16, 16, 762, 1090, { bw: th.border === 'thin' ? 1 : th.border === 'thick' ? 3 : 4, bs: th.border === 'double' ? 'double' : 'solid' });
+    let y;
+    if (off) {
+      txt(40, 30, 250, 76, th.offL || (S.ministry || '') + (S.academy ? '\n' + S.academy : ''), { size: 10, b: 1, up: 1, align: 'center' });
+      txt(504, 30, 250, 76, th.offR || 'République du Mali\nUn Peuple – Un But – Une Foi', { size: 10, b: 1, up: 1, align: 'center' });
+      if (th.logoR) add({ type: 'image', x: 357, y: 28, w: 80, h: 80, src: th.logoR, fit: 'contain' });
+      if (th.showLogo !== false) add(th.logoL ? { type: 'image', x: 40, y: 118, w: 70, h: 70, src: th.logoL, fit: 'contain' } : { type: 'image', kind: 'logo', x: 40, y: 118, w: 70, h: 70, fit: 'contain' });
+      txt(120, 122, 554, 34, '{{ecole}}', { size: 22, b: 1, align: 'center' });
+      txt(120, 158, 554, 32, '{{adresse}} · {{tel}}', { size: 11, color: '#555', align: 'center' });
+      y = 200;
+    } else {
+      if (th.showLogo !== false) add(th.logoL ? { type: 'image', x: 40, y: 32, w: 84, h: 84, src: th.logoL, fit: 'contain' } : { type: 'image', kind: 'logo', x: 40, y: 32, w: 84, h: 84, fit: 'contain' });
+      txt(136, 40, 618, 34, '{{ecole}}', { size: 22, b: 1, align: th.header === 'center' ? 'center' : 'left' });
+      txt(136, 76, 618, 40, '{{adresse}} · {{tel}}', { size: 11, color: '#555', align: th.header === 'center' ? 'center' : 'left' });
+      y = 130;
+    }
+    box(40, y, 714, 2, { bg: a, bw: 0 });
+    txt(40, y + 6, 450, 30, th.title || 'BULLETIN DE NOTES', { size: 18, b: 1, color: a, ls: 1.5, va: 'middle' });
+    txt(494, y + 6, 260, 30, '{{periode}} · {{annee}}', { size: 12.5, b: 1, align: 'right', va: 'middle' });
+    box(40, y + 40, 714, 1, { bg: p, bw: 0 });
+    y += 54;
+    [['Nom et prénoms', '{{nom}} {{prenoms}}'], ['Matricule', '{{matricule}}'], ['Classe', '{{classe}}'], ['Né(e) le', '{{naissance}} à {{lieu}}'], ['Sexe', '{{sexe}}'], ['Effectif', '{{effectif}}']].forEach(([l, v], i) => {
+      const x = 40 + (i % 3) * 242, yy = y + Math.floor(i / 3) * 40;
+      txt(x, yy, 230, 14, l, { size: 8.5, up: 1, color: '#777', ls: .6, pad: 0 }); txt(x, yy + 14, 230, 20, v, { size: 12.5, b: 1, pad: 0 });
+    });
+    y += 90;
+    add({ type: 'table', x: 40, y, w: 714, cols: { coef: th.showCoef !== false, cls: th.showDevCompo !== false, compo: th.showDevCompo !== false, avg: true, total: th.showTotal !== false, appr: th.showAppr !== false }, labels: th.cols || {}, size: 11.5, headBg: p, headColor: '#fff', zebra: !!th.zebra, lc: '#d9d9d9', color: p, pad: 5, foot: true, font: f });
+    y += 34 + nSub * 25 + 36;
+    const sums = [['Moyenne générale', '{{moyenne}} / 20', 1], ['Rang', '{{rang}} / {{effectif}}', th.showRank !== false], ['Moyenne de la classe', '{{moyclasse}}', th.showClassAvg !== false], ['Plus forte / faible', '{{max}} / {{min}}', th.showMinMax !== false]].filter(s => s[2]);
+    const sw = (714 - (sums.length - 1) * 12) / sums.length;
+    sums.forEach(([l, v], i) => { const x = 40 + i * (sw + 12); box(x, y, sw, 50); txt(x, y + 4, sw, 14, l, { size: 8.5, up: 1, color: '#777', align: 'center', pad: 0 }); txt(x, y + 20, sw, 26, v, { size: 15, b: 1, color: a, align: 'center', pad: 0 }); });
+    y += 64;
+    const ments = [['Assiduité', '{{absences}} absence(s) · {{retards}} retard(s)', th.showAbs !== false], ['Mention du conseil', '{{mention}}', th.showMention !== false], ['Observations', '', th.showObs !== false]].filter(s => s[2]);
+    if (ments.length) { const mw = (714 - (ments.length - 1) * 12) / ments.length; ments.forEach(([l, v], i) => { const x = 40 + i * (mw + 12); box(x, y, mw, 84); txt(x + 6, y + 4, mw - 12, 14, l, { size: 8.5, up: 1, color: '#777', pad: 0 }); if (v) txt(x + 6, y + 22, mw - 12, 56, v, { size: 12, b: 1, pad: 0 }); }); y += 100; }
+    if (th.showSign !== false) { box(60, y + 70, 250, 1, { bg: p, bw: 0 }); box(484, y + 70, 250, 1, { bg: p, bw: 0 }); txt(60, y + 74, 250, 18, 'Le Parent / Tuteur', { size: 11, align: 'center' }); txt(484, y + 74, 250, 18, 'Le Directeur', { size: 11, align: 'center' }); }
+    if (th.footer) txt(40, 1076, 714, 20, th.footer, { size: 10, color: '#777', align: 'center' });
+    return { name: 'Nouveau modèle', bg: '#ffffff', els };
+  };
+
   /* ---------- QR code (bibliothèque qrcode-generator chargée si disponible) ---------- */
   DOC.qr = text => {
     try {

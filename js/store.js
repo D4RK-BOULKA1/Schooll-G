@@ -305,7 +305,7 @@
   SG.publish = async (id, D, sch) => {
     const s = S(id), S0 = D.settings, pc = s.pubCache || (s.pubCache = { pub: '', stu: {}, tch: {} }); pc.tch = pc.tch || {};
     const pubSettings = { name: S0.name, address: S0.address, city: S0.city, phone: S0.phone, email: S0.email, logo: S0.logo, year: S0.year, motto: S0.motto, accent: S0.accent, tranches: S0.tranches, periods: S0.periods, days: S0.days, slots: S0.slots, ministry: S0.ministry, academy: S0.academy, cantinePrice: S0.cantinePrice };
-    const settingsJson = JSON.stringify(pubSettings), noticesJson = JSON.stringify(D.notices.map(n => ({ id: n.id, title: n.title, body: n.body, target: n.target, priority: n.priority, date: n.date }))), themeJson = JSON.stringify(D.customTheme || null);
+    const settingsJson = JSON.stringify(pubSettings), noticesJson = JSON.stringify(D.notices.map(n => ({ id: n.id, title: n.title, body: n.body, target: n.target, priority: n.priority, date: n.date }))), themeJson = (() => { const tp = (D.bulTpls || []).find(x => x.id === D.bulActive); return (D.customTheme || tp) ? JSON.stringify(Object.assign({}, D.customTheme || {}, tp ? { _tpl: tp } : {})) : 'null'; })();
     const pk = settingsJson + '|' + noticesJson + '|' + themeJson;
     if (pc.pub !== pk) { await db.collection('pub').doc(sch.code).update({ name: S0.name, settingsJson, noticesJson, themeJson, updatedAtMs: Date.now() }); pc.pub = pk; }
     const rc = {}, cur = {};

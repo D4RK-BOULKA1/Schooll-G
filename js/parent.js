@@ -33,7 +33,7 @@
     let Pn = 0, R = 0, A = 0; const hist = Object.keys(P.att).sort().map(d => [d, P.att[d]]); hist.forEach(([, a]) => { if (a.s === 'P') Pn++; else if (a.s === 'R') R++; else A++; });
     const bul = (S.periods || []).filter(p => P.results[p]).map(per => ({ per, r: P.results[per] }));
     if (!selPer || !bul.find(b => b.per === selPer)) selPer = bul.length ? bul[bul.length - 1].per : null;
-    const th = () => DOC.theme(D, theme ? 'custom' : 'classic');
+    const th = () => DOC.theme(D, theme ? 'custom' : 'classic'), tpl = theme && theme._tpl ? theme._tpl : null;
 
     const TABS = [['avis', 'Avis', myNotices.length], ['notes', 'Notes et bulletins'], ['pay', 'Paiements'], ['att', 'Présences'], ['edt', 'Emploi du temps'], ['carte', 'Carte scolaire']];
     if (!built) {
@@ -55,7 +55,7 @@
           const c = bul.find(b => b.per === selPer);
           return `<div class="kpis"><div class="kpi o"><small>Moyenne générale</small><b>${r2(c.r.mean)} / 20</b></div><div class="kpi"><small>Rang</small><b>${c.r.rank} / ${c.r.count}</b></div><div class="kpi g"><small>Mention</small><b style="font-size:16px">${esc(DOC.mention(c.r.mean))}</b></div></div>
           <div class="noprint" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><select id="per" style="width:auto">${bul.map(b => `<option ${b.per === c.per ? 'selected' : ''}>${esc(b.per)}</option>`).join('')}</select><button class="btn btn-navy" id="pr">${ic('print', 16)}Imprimer le bulletin</button></div>
-          <div class="bl-wrap"><style>${DOC.css}</style>${DOC.bulletin(D, school, 'me', c.per, th())}</div>`;
+          <div class="bl-wrap"><style>${DOC.css}${DOC.freeCss}</style>${DOC.bulletinAny(D, school, 'me', c.per, th(), tpl)}</div>`;
         },
         pay: () => `<div class="kpis"><div class="kpi"><small>Scolarité annuelle</small><b>${money(tuition)}</b></div><div class="kpi g"><small>Déjà payé</small><b>${money(paid)}</b></div><div class="kpi ${tuition - paid > 0 ? 'r' : 'g'}"><small>Reste à payer</small><b>${money(Math.max(0, tuition - paid))}</b></div></div>
         <div class="card"><div class="ch"><h3>Tranches</h3></div><div class="cb">${tranches.map(t => `<div class="row"><span><b>${esc(t.label)}</b><br><small class="muted">Avant le ${fdate(t.due)} · ${money(t.amount)}</small></span>${badge(t.status, { 'payée': 'ok', 'partielle': 'warn', 'en retard': 'bad', 'à venir': '' }[t.status])}</div>`).join('')}</div></div>
@@ -66,7 +66,8 @@
       }[tab]();
       document.getElementById('content').innerHTML = body;
       const per = document.getElementById('per'); if (per) per.onchange = () => { selPer = per.value; draw(); };
-      const pr = document.getElementById('pr'); if (pr) pr.onclick = () => UI.print(DOC.bulletin(D, school, 'me', selPer, th()), DOC.css);
+      const pr = document.getElementById('pr'); if (pr) pr.onclick = () => UI.print(DOC.bulletinAny(D, school, 'me', selPer, th(), tpl), DOC.cssAny(tpl));
+      DOC.fitFree(document.getElementById('content'));
       const pc = document.getElementById('pc'); if (pc) pc.onclick = () => { const c = DOC.card(D, school, stu, 'marine', S.accent); UI.print(`<div style="padding:10mm">${c.front}${c.back}</div>`, DOC.cardCss); };
       document.querySelectorAll('.tabs2 button').forEach(b => b.classList.toggle('on', b.dataset.t === tab));
     }
