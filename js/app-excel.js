@@ -149,7 +149,7 @@
           res.list.forEach(s => {
             let c = s.clsName ? known[norm(s.clsName)] : D.classes[0];
             if (!c) { skipped++; return; }
-            D.students.push({ id: uid(), matricule: 'ELV-' + String(++D.counters.student).padStart(4, '0'), pin: A.pin(), status: 'inscrit', createdAt: today(), discount: 0, cantine: false, photo: '', last: s.last, first: s.first, sex: s.sex, birth: s.birth, birthplace: s.birthplace, classId: c.id, parent: s.parent, parentPhone: s.parentPhone, parentEmail: s.parentEmail, address: s.address }); n++;
+            const ns = { id: uid(), matricule: 'ELV-' + String(++D.counters.student).padStart(4, '0'), pin: '', status: 'inscrit', createdAt: today(), discount: 0, cantine: false, photo: '', last: s.last, first: s.first, sex: s.sex, birth: s.birth, birthplace: s.birthplace, classId: c.id, parent: s.parent, parentPhone: s.parentPhone, parentEmail: s.parentEmail, address: s.address }; ns.pin = A.parentPin(ns, D.students); D.students.push(ns); n++;
           });
           A.save(); A.rerender(); UI.toast(n + ' élève(s) importé(s)' + (made ? ', ' + made + ' classe(s) créée(s)' : '') + (skipped ? ', ' + skipped + ' ignoré(s) (classe inconnue)' : '') + '.', 'ok');
         }

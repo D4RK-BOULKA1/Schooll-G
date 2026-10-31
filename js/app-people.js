@@ -33,7 +33,7 @@
       onSubmit: v => {
         v.last = v.last.trim(); v.first = v.first.trim();
         if (create) {
-          const st = Object.assign({}, v, { id: uid(), matricule: 'ELV-' + String(++D.counters.student).padStart(4, '0'), pin: rnd6(), status: 'inscrit', createdAt: today() });
+          const st = Object.assign({}, v, { id: uid(), matricule: 'ELV-' + String(++D.counters.student).padStart(4, '0'), pin: A.parentPin(v, D.students), status: 'inscrit', createdAt: today() });
           delete st.inscPay; delete st.inscFee; D.students.push(st);
           const insc = (v.inscPay && +v.inscFee > 0) ? A.addPayment({ studentId: st.id, type: 'Inscription', amount: +v.inscFee }) : null;
           A.save(); UI.toast('Élève inscrit : ' + st.matricule, 'ok'); A.go('#/student/' + st.id); if (insc) setTimeout(() => A.receipt(insc), 250);
@@ -44,7 +44,7 @@
   ACT['stu-new'] = () => stuModal(null);
   ACT['stu-edit'] = el => stuModal(A.stu(el.dataset.id));
   ACT['stu-del'] = el => { const s = A.stu(el.dataset.id); UI.confirm(`Supprimer définitivement <b>${esc(A.name(s))}</b> avec ses paiements, notes et pointages ? Pour conserver l'historique, utilisez plutôt le statut « Radié ».`, () => { D.students = D.students.filter(x => x.id !== s.id); D.payments = D.payments.filter(p => p.studentId !== s.id); Object.keys(D.notes).forEach(k => { if (k.startsWith(s.id + '|')) delete D.notes[k]; }); Object.values(D.attendance).forEach(d => delete d[s.id]); A.save(); UI.toast('Élève supprimé.'); A.go('#/students'); }, { danger: true, yes: 'Supprimer' }); };
-  ACT['stu-pin'] = el => { const s = A.stu(el.dataset.id); s.pin = rnd6(); A.save(); UI.toast('Nouveau code parent généré.'); A.rerender(); };
+  ACT['stu-pin'] = el => { const s = A.stu(el.dataset.id), np = rnd6(); D.students.forEach(o => { if (o === s || A.sameParent(o, s)) o.pin = np; }); A.save(); UI.toast('Nouveau code parent généré' + (D.students.filter(o => o !== s && A.sameParent(o, s)).length ? ' (identique pour ses frères et sœurs).' : '.')); A.rerender(); };
   ACT.copy = el => { navigator.clipboard && navigator.clipboard.writeText(el.dataset.v); UI.toast('Copié.'); };
 
   V.students = () => {

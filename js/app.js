@@ -10,6 +10,11 @@
   A.school = () => school0;
   A.save = () => SG.saveData(school0.id, D);
   A.pin = () => SG.pin();
+  /* même parent (nom + téléphone identiques) : tous ses enfants partagent le même code parent */
+  const nrm = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const ph = v => String(v || '').replace(/\D/g, '').slice(-8);
+  A.sameParent = (a, b) => { const n = nrm(a.parent), t = ph(a.parentPhone); return !!n && t.length >= 8 && n === nrm(b.parent) && t === ph(b.parentPhone); };
+  A.parentPin = (st, list) => { const sib = (list || A.D.students).find(o => o !== st && o.pin && A.sameParent(o, st)); return sib ? sib.pin : A.pin(); };
   const sum = (arr, f) => arr.reduce((a, x) => a + (+f(x) || 0), 0);
   A.sum = sum;
 
