@@ -4,12 +4,12 @@
   'use strict';
   const { esc, money, fdate, ic, today, badge } = UI;
   const root = document.getElementById('root');
-  const sess = SG.parentSession();
   const out = () => { SG.parentLogout(); location.href = 'login.html#parent'; };
   const r2 = v => v == null ? '—' : (Math.round(v * 100) / 100).toFixed(2).replace('.', ',');
   const sum = (a, f) => a.reduce((x, y) => x + (+f(y) || 0), 0);
   const blocked = () => { root.innerHTML = `<div style="min-height:100vh;display:grid;place-items:center;padding:24px"><div style="max-width:460px;text-align:center"><h1 style="font-size:26px;margin-bottom:10px">Espace momentanément indisponible</h1><p class="muted" style="margin-bottom:18px">Veuillez contacter l'administration de l'école.</p><button class="btn btn-navy" id="o">Retour</button></div></div>`; document.getElementById('o').onclick = out; };
-  if (!sess) { location.replace('login.html#parent'); return; }
+  if (!SG.parentSession()) { location.replace('login.html#parent'); return; }
+  const st0 = document.createElement('style'); st0.textContent = '.kids{background:#fff;border-bottom:1px solid var(--line)}.kids .in{max-width:980px;margin:0 auto;padding:10px 20px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.kids button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;font:600 13px inherit;color:var(--ink);cursor:pointer}.kids button.on{background:var(--navy);border-color:var(--navy);color:#fff}.kids button.add{border-style:dashed;color:var(--orange)}.kids .rm{border:0;background:none;color:var(--mute);font-weight:500;text-decoration:underline;padding:7px 4px}@media print{.kids{display:none!important}}'; document.head.appendChild(st0);
 
   let tab = 'avis', selPer = null, built = false, unsub = null;
 
@@ -23,6 +23,7 @@
     Object.keys(P.results).forEach(per => { const r = P.results[per]; results[per] = { list: [{ student: stu, rows: r.rows.map(x => ({ sub: { name: x.n }, coef: x.coef, dev: x.dev, comp: x.comp, avg: x.avg, total: x.total })), total: r.total, coef: r.coef, mean: r.mean, rank: r.rank }], subs: P.subs, count: r.count, classMean: r.classMean, max: r.max, min: r.min }; });
     const D = { settings: S, students: [stu], classes: [cl], attendance: att, customTheme: theme, subjects: { [cl.id]: P.subs }, notes: {}, teachers: [], _results: results };
     const school = { code: SG.parentSession().code };
+    { const cs = SG.parentSession(), me = cs.kids.find(k => k.key === cs.active), lb = ((stu.first || '') + ' ' + ((stu.last || '')[0] || '').toUpperCase() + '.').trim(); if (me && me.n !== lb) { me.n = lb; SG.parentSave(cs); } }
     document.documentElement.style.setProperty('--orange', S.accent || '#E4572E'); document.title = S.name + ', espace parent';
 
     const tuition = Math.max(0, (+cl.tuition || 0) - (+stu.discount || 0));
@@ -37,11 +38,12 @@
 
     const TABS = [['avis', 'Avis', myNotices.length], ['notes', 'Notes et bulletins'], ['pay', 'Paiements'], ['att', 'Présences'], ['edt', 'Emploi du temps'], ['carte', 'Carte scolaire']];
     if (!built) {
-      root.innerHTML = `<div class="ph-top"><div class="in"><div class="lg" id="lg"></div><div><b id="sn"></b><small id="sy"></small></div><div class="sp"></div><button id="out">Quitter</button></div></div><div class="kid"><div class="in" id="kid"></div></div><div class="tabs2"><div class="in" id="tb"></div></div><div class="cont" id="content"></div>`;
+      root.innerHTML = `<div class="ph-top"><div class="in"><div class="lg" id="lg"></div><div><b id="sn"></b><small id="sy"></small></div><div class="sp"></div><button id="out">Quitter</button></div></div><div class="kids"><div class="in" id="kids"></div></div><div class="kid"><div class="in" id="kid"></div></div><div class="tabs2"><div class="in" id="tb"></div></div><div class="cont" id="content"></div>`;
       document.getElementById('out').onclick = out;
       document.getElementById('tb').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { tab = b.dataset.t; draw(); } });
       built = true;
     }
+    drawKids();
     document.getElementById('lg').innerHTML = S.logo ? `<img src="${S.logo}" alt="">` : 'G';
     document.getElementById('sn').textContent = S.name || ''; document.getElementById('sy').textContent = 'Espace parent · ' + (S.year || '');
     document.getElementById('kid').innerHTML = `<div class="big">${stu.photo ? `<img src="${stu.photo}" alt="">` : esc(((stu.first || '?')[0] + (stu.last || '?')[0]).toUpperCase())}</div><div><h1>${esc((stu.last || '').toUpperCase() + ' ' + (stu.first || ''))}</h1><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${badge(esc(cl.name || ''), 'info')}<span class="bdg">${esc(stu.matricule)}</span></div></div>`;
@@ -75,8 +77,35 @@
   }
 
   const ld = UI.loading(root, { name: 'School-G', sub: 'Espace parent', msg: 'Chargement du suivi de votre enfant…' }); ld.set(85);
-  unsub = SG.watchParent(sess, (e, cur) => {
-    if (e) { if (e.message === 'gone') { return out(); } root.innerHTML = `<div style="min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center"><div><h1 style="font-size:24px;margin-bottom:10px">Connexion impossible</h1><p class="muted" style="margin-bottom:14px">${esc(SG.errMsg(e))}</p><button class="btn btn-navy" onclick="location.reload()">Réessayer</button></div></div>`; return; }
-    try { build(cur); } catch (x) { console.error(x); }
-  });
+
+  /* plusieurs enfants dans un seul espace : sélecteur + ajout par matricule et code parent */
+  function drawKids() {
+    const el = document.getElementById('kids'); if (!el) return; const s = SG.parentSession();
+    el.innerHTML = s.kids.map(k => `<button data-k="${esc(k.key)}" class="${k.key === s.active ? 'on' : ''}">${esc(k.n || 'Enfant')}</button>`).join('') + `<button class="add" data-add="1">+ Ajouter un enfant</button>` + (s.kids.length > 1 ? `<button class="rm" data-rm="1">Retirer cet enfant</button>` : '');
+    el.onclick = ev => {
+      const b = ev.target.closest('button'); if (!b) return;
+      if (b.dataset.k) { if (b.dataset.k !== SG.parentSession().active) { SG.parentSelect(b.dataset.k); start(); } }
+      else if (b.dataset.add) addKid();
+      else if (b.dataset.rm) UI.confirm('Retirer cet enfant de votre espace ? Vous pourrez le rajouter avec son matricule et son code parent.', () => { const n = SG.parentRemove(SG.parentSession().active); if (!n) return out(); start(); }, { title: 'Retirer cet enfant' });
+    };
+  }
+  function addKid() {
+    const m = UI.formModal({
+      title: 'Ajouter un enfant', size: 'sm', submit: 'Ajouter',
+      extra: '<p class="small muted" style="margin-top:8px">Le code de l\'école est déjà enregistré. Entrez le matricule et le code parent remis par l\'école pour cet enfant.</p>',
+      fields: [{ name: 'mat', label: 'Matricule de l\'enfant', type: 'text', placeholder: 'Ex : ELV-0012' }, { name: 'pin', label: 'Code parent de cet enfant', type: 'text', placeholder: '8 caractères' }],
+      onSubmit: v => { (async () => { try { await SG.parentAdd(v.mat, v.pin); m.close(); start(); UI.toast('Enfant ajouté.', 'ok'); } catch (x) { UI.toast(x.message || 'Ajout impossible.', 'err'); } })(); return false; }
+    });
+  }
+  function start() {
+    if (unsub) { unsub(); unsub = null; } const s = SG.parentSession(); selPer = null; const k0 = s.key;
+    unsub = SG.watchParent(s, (e, cur) => {
+      if (SG.parentSession().key !== k0) return;
+      if (e) {
+        if (e.message === 'gone') { const n = SG.parentRemove(k0); if (!n) return out(); return start(); }
+        root.innerHTML = `<div style="min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center"><div><h1 style="font-size:24px;margin-bottom:10px">Connexion impossible</h1><p class="muted" style="margin-bottom:14px">${esc(SG.errMsg(e))}</p><button class="btn btn-navy" onclick="location.reload()">Réessayer</button></div></div>`; return; }
+      try { build(cur); } catch (x) { console.error(x); }
+    });
+  }
+  start();
 })();

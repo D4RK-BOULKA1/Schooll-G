@@ -333,9 +333,29 @@
     if (!pd.exists) throw new Error('Code école introuvable.');
     if (!sd.exists) throw new Error('Matricule ou code parent incorrect.');
     const stt = SG.status(accessObj(pd.data().access)); if (stt !== 'active' && stt !== 'trial') throw new Error('Cet espace est momentanément indisponible. Contactez l\'école.');
-    SG.wr('psess', { code, key }); return { code, key };
+    /* une même famille peut suivre plusieurs enfants de la même école dans un seul espace */
+    const old = SG.rd('psess', null), kids = old && old.code === code && Array.isArray(old.kids) ? old.kids.filter(k => k.key !== key) : [];
+    kids.push({ key, n: kidLabel(sd.data().p) }); SG.wr('psess', { code, kids, active: key, key }); return { code, key };
   };
-  SG.parentSession = () => SG.rd('psess', null);
+  const kidLabel = p => { try { const st = JSON.parse(p).student || {}; return ((st.first || '') + ' ' + ((st.last || '')[0] || '').toUpperCase() + '.').trim(); } catch (e) { return ''; } };
+  SG.parentSession = () => {
+    const s = SG.rd('psess', null); if (!s) return null;
+    const kids = Array.isArray(s.kids) && s.kids.length ? s.kids : [{ key: s.key, n: '' }];
+    const active = kids.some(k => k.key === s.active) ? s.active : kids[0].key;
+    return { code: s.code, kids, active, key: active };
+  };
+  SG.parentSave = s => SG.wr('psess', { code: s.code, kids: s.kids, active: s.active, key: s.active });
+  SG.parentAdd = async (mat, pin) => {
+    const s = SG.parentSession(); if (!s) throw new Error('Session expirée, reconnectez-vous.');
+    if (!String(mat).trim() || !String(pin).trim()) throw new Error('Renseignez le matricule et le code parent.');
+    const key = await SG.studentKey(s.code, mat, pin);
+    if (s.kids.some(k => k.key === key)) { s.active = key; SG.parentSave(s); return s; }
+    let sd; try { sd = await db.collection('pstu').doc(key).get(); } catch (e) { throw new Error(SG.errMsg(e)); }
+    if (!sd.exists) throw new Error('Matricule ou code parent incorrect.');
+    s.kids.push({ key, n: kidLabel(sd.data().p) }); s.active = key; SG.parentSave(s); return s;
+  };
+  SG.parentSelect = key => { const s = SG.parentSession(); if (s && s.kids.some(k => k.key === key)) { s.active = key; SG.parentSave(s); } return SG.parentSession(); };
+  SG.parentRemove = key => { const s = SG.parentSession(); if (!s) return null; s.kids = s.kids.filter(k => k.key !== key); if (!s.kids.length) { SG.parentLogout(); return null; } s.active = s.kids[0].key; SG.parentSave(s); return SG.parentSession(); };
   SG.parentLogout = () => { try { localStorage.removeItem('sgv1_psess'); } catch (e) { } };
   SG.watchParent = (sess, cb) => {
     const cur = {}; const emit = () => { if (cur.s && cur.p) cb(null, cur); };
