@@ -49,7 +49,7 @@
   ACT['set-pw'] = async () => {
     const v = UI.read(document.getElementById('f-pw'));
     if (!v.old) return UI.toast('Saisissez votre mot de passe actuel.', 'err');
-    if (v.n1.length < 6) return UI.toast('Au moins 6 caractères.', 'err'); if (v.n1 !== v.n2) return UI.toast('Les mots de passe ne correspondent pas.', 'err');
+    if (v.n1.length < 8) return UI.toast('Au moins 8 caractères.', 'err'); if (v.n1 !== v.n2) return UI.toast('Les mots de passe ne correspondent pas.', 'err');
     try { await SG.changePassword(v.old, v.n1); UI.toast('Mot de passe modifié.', 'ok'); document.getElementById('f-pw').reset(); } catch (e) { UI.toast(SG.errMsg(e), 'err'); }
   };
   ACT['demo-remove'] = () => UI.confirm('Retirer les élèves, professeurs, paiements, notes et avis d\'exemple ? Vos propres données sont conservées.', () => { A.removeDemo(); A.rerender(); UI.toast('Données d\'exemple retirées.', 'ok'); }, { danger: true, yes: 'Retirer' });

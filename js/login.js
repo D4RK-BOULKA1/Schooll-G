@@ -54,7 +54,7 @@
   $('f-signup').addEventListener('submit', async e => {
     e.preventDefault(); const f = e.target, v = UI.read(f); err('signup');
     if (!v.name.trim() || !v.director.trim() || !v.email.trim() || !v.phone.trim() || !v.password) return err('signup', 'Merci de remplir tous les champs obligatoires.');
-    if (v.password.length < 6) return err('signup', 'Le mot de passe doit contenir au moins 6 caractères.');
+    if (v.password.length < 8) return err('signup', 'Le mot de passe doit contenir au moins 8 caractères.');
     if (v.password !== v.confirm) return err('signup', 'Les deux mots de passe ne correspondent pas.');
     busy(f, true);
     try { await SG.signupEmail(v.email, v.password); await SG.createSchool(v); go(); }
