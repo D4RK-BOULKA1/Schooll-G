@@ -32,36 +32,51 @@
   /* ================= lecture .xlsx / .csv ================= */
   const xdoc = s => new DOMParser().parseFromString(s, 'application/xml');
   const txt = n => Array.from(n.getElementsByTagName('t')).map(t => t.textContent).join('');
-  async function readXlsx(buf) {
-    const z = await JSZip.loadAsync(buf);
-    let shared = []; const ss = z.file('xl/sharedStrings.xml');
-    if (ss) shared = Array.from(xdoc(await ss.async('string')).getElementsByTagName('si')).map(txt);
-    let path = 'xl/worksheets/sheet1.xml';
-    try {
-      const wb = xdoc(await z.file('xl/workbook.xml').async('string')), rel = xdoc(await z.file('xl/_rels/workbook.xml.rels').async('string'));
-      const sh = wb.getElementsByTagName('sheet')[0], rid = sh && (sh.getAttribute('r:id') || sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id'));
-      const r = Array.from(rel.getElementsByTagName('Relationship')).find(x => x.getAttribute('Id') === rid);
-      if (r) { const t = r.getAttribute('Target'); path = t.startsWith('/') ? t.slice(1) : 'xl/' + t.replace(/^\.\//, ''); }
-    } catch (e) { }
-    const f = z.file(path); if (!f) throw new Error('Feuille introuvable dans le fichier.');
+  const colIdx = ref => { const m = /^([A-Z]+)/.exec(ref || ''); if (!m) return -1; let ci = 0; for (const ch of m[1]) ci = ci * 26 + (ch.charCodeAt(0) - 64); return ci - 1; };
+  function sheetRows(xml, shared, keepGaps) {
     const rows = [];
-    Array.from(xdoc(await f.async('string')).getElementsByTagName('row')).forEach(row => {
+    Array.from(xdoc(xml).getElementsByTagName('row')).forEach(row => {
       const out = []; let pos = 0;
       Array.from(row.getElementsByTagName('c')).forEach(c => {
-        const ref = c.getAttribute('r') || ''; const m = /^([A-Z]+)/.exec(ref); let ci = pos;
-        if (m) { ci = 0; for (const ch of m[1]) ci = ci * 26 + (ch.charCodeAt(0) - 64); ci -= 1; }
+        let ci = colIdx(c.getAttribute('r')); if (ci < 0) ci = pos;
         const t = c.getAttribute('t'), v = c.getElementsByTagName('v')[0];
         let val = '';
         if (t === 'inlineStr') val = txt(c); else if (t === 's') val = shared[+(v ? v.textContent : -1)] || ''; else if (v) val = t === 'str' || t === 'b' || t === 'e' ? v.textContent : (isNaN(+v.textContent) ? v.textContent : +v.textContent);
         out[ci] = val; pos = ci + 1;
       });
-      rows.push(Array.from(out, x => x == null ? '' : x));
+      const arr = Array.from(out, x => x == null ? '' : x), rn = +row.getAttribute('r');
+      if (keepGaps && rn > 0) { while (rows.length < rn - 1) rows.push([]); rows[rn - 1] = arr; } else rows.push(arr);
     });
     return rows;
   }
+  async function xlsxBook(buf) {
+    const z = await JSZip.loadAsync(buf); let shared = []; const ss = z.file('xl/sharedStrings.xml');
+    if (ss) shared = Array.from(xdoc(await ss.async('string')).getElementsByTagName('si')).map(txt);
+    const sheets = [];
+    try {
+      const wb = xdoc(await z.file('xl/workbook.xml').async('string')), rel = xdoc(await z.file('xl/_rels/workbook.xml.rels').async('string')), rels = Array.from(rel.getElementsByTagName('Relationship'));
+      Array.from(wb.getElementsByTagName('sheet')).forEach(sh => {
+        const rid = sh.getAttribute('r:id') || sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id'), r = rels.find(x => x.getAttribute('Id') === rid); if (!r) return;
+        const t = r.getAttribute('Target'); sheets.push({ name: sh.getAttribute('name') || '', hidden: /hidden/i.test(sh.getAttribute('state') || ''), path: t.startsWith('/') ? t.slice(1) : 'xl/' + t.replace(/^\.\//, '') });
+      });
+    } catch (e) { }
+    if (!sheets.length) sheets.push({ name: 'Feuille 1', hidden: false, path: 'xl/worksheets/sheet1.xml' });
+    return { z, shared, sheets };
+  }
+  async function readXlsx(buf) { // première feuille (utilisé par les imports des professeurs et des notes)
+    const b = await xlsxBook(buf), f = b.z.file(b.sheets[0].path); if (!f) throw new Error('Feuille introuvable dans le fichier.');
+    return sheetRows(await f.async('string'), b.shared, false);
+  }
+  async function readXlsxAll(buf) { // toutes les feuilles visibles : [{ name, rows }], numéros de ligne conservés
+    const b = await xlsxBook(buf), out = [];
+    for (const sh of b.sheets) { if (sh.hidden) continue; const f = b.z.file(sh.path); if (f) out.push({ name: sh.name, rows: sheetRows(await f.async('string'), b.shared, true) }); }
+    if (!out.length) throw new Error('Feuille introuvable dans le fichier.');
+    return out;
+  }
   function readCsv(text) {
-    text = text.replace(/^﻿/, ''); const first = text.split(/\r?\n/)[0] || '';
-    const d = [';', '\t', ','].map(x => [x, first.split(x).length]).sort((a, b) => b[1] - a[1])[0][0];
+    text = text.replace(/^﻿/, ''); const lines = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 15);
+    const med = x => { const c = lines.map(l => l.split(x).length - 1).sort((a, b) => a - b); return c.length ? c[Math.floor(c.length / 2)] : 0; };
+    const d = [';', '\t', ',', '|'].map(x => [x, med(x)]).sort((a, b) => b[1] - a[1])[0][0];
     const rows = []; let r = [], c = '', q = false;
     for (let i = 0; i < text.length; i++) {
       const ch = text[i];
@@ -102,7 +117,6 @@
 
   /* ================= import ================= */
   const norm = s => String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const KEYS = { last: ['nom', 'nomdefamille', 'lastname', 'last', 'nomeleve'], first: ['prenoms', 'prenom', 'firstname', 'first'], sex: ['sexe', 'genre'], birth: ['datedenaissance', 'naissance', 'datenaissance', 'nele', 'dn'], birthplace: ['lieudenaissance', 'lieunaissance', 'lieu', 'anaissance'], cls: ['classe', 'class', 'niveau'], parent: ['parenttuteur', 'parent', 'tuteur', 'parentoututeur', 'nomduparent', 'pere'], parentPhone: ['telephoneparent', 'telephone', 'tel', 'phone', 'contact', 'telparent', 'telephonedupparent', 'telephonedeparent'], parentEmail: ['emailparent', 'email', 'mail', 'courriel'], address: ['adresse', 'domicile'] };
   const toIso = v => {
     if (v === '' || v == null) return '';
     if (typeof v === 'number' && v > 15000 && v < 80000) return new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 864e5).toISOString().slice(0, 10);
@@ -113,60 +127,8 @@
   };
   const toSex = v => { const n = norm(v); return /^(f|fille|feminin|femme)$/.test(n) ? 'F' : 'M'; };
   const phone = v => String(v == null ? '' : v).trim().replace(/\.0$/, '');
-  function parse(rows) {
-    rows = rows.filter(r => r.some(c => String(c).trim() !== '')); if (rows.length < 2) throw new Error('Le fichier ne contient aucune ligne d\'élève.');
-    const head = rows[0].map(norm), idx = {};
-    Object.keys(KEYS).forEach(k => { const i = head.findIndex(h => KEYS[k].includes(h)); if (i >= 0) idx[k] = i; });
-    if (idx.last == null || idx.first == null) throw new Error('Colonnes « Nom » et « Prénoms » introuvables. Utilisez le modèle proposé.');
-    const get = (r, k) => idx[k] == null ? '' : r[idx[k]];
-    const key = (l, f, b) => norm(l) + '|' + norm(f) + '|' + (b || '');
-    const have = new Set(D.students.map(s => key(s.last, s.first, s.birth || ''))), seen = new Set();
-    const out = [], bad = [];
-    rows.slice(1).forEach((r, i) => {
-      const last = String(get(r, 'last')).trim(), first = String(get(r, 'first')).trim();
-      if (!last && !first) return; if (!last || !first) { bad.push('Ligne ' + (i + 2) + ' : nom ou prénoms manquant'); return; }
-      const birth = toIso(get(r, 'birth')), k = key(last, first, birth);
-      if (have.has(k) || seen.has(k)) { bad.push('Ligne ' + (i + 2) + ' : ' + last + ' ' + first + ' existe déjà (ignoré)'); return; } seen.add(k);
-      out.push({ last, first, sex: toSex(get(r, 'sex')), birth, birthplace: String(get(r, 'birthplace')).trim(), clsName: String(get(r, 'cls')).trim(), parent: String(get(r, 'parent')).trim(), parentPhone: phone(get(r, 'parentPhone')), parentEmail: String(get(r, 'parentEmail')).trim(), address: String(get(r, 'address')).trim() });
-    });
-    return { list: out, bad, hasCls: idx.cls != null };
-  }
-  function importModal(res) {
-    const known = {}; D.classes.forEach(c => { known[norm(c.name)] = c; });
-    const missing = [...new Set(res.list.filter(s => s.clsName && !known[norm(s.clsName)]).map(s => s.clsName))];
-    const noCls = res.list.filter(s => !s.clsName).length;
-    UI.modal({
-      title: 'Importer des élèves', size: 'lg',
-      body: `<div class="kpis" style="margin-bottom:14px"><div class="kpi g"><small>Élèves à importer</small><b>${res.list.length}</b></div><div class="kpi ${res.bad.length ? 'o' : ''}"><small>Lignes ignorées</small><b>${res.bad.length}</b></div><div class="kpi"><small>Classes à créer</small><b>${missing.length}</b></div></div>
-      ${missing.length ? `<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:12px"><input type="checkbox" id="xl-mk" checked style="margin-top:4px"><span>Créer les classes qui n'existent pas encore : <b>${missing.map(esc).join(', ')}</b><br><small class="muted">Sans cette option, ces élèves sont ignorés.</small></span></label>` : ''}
-      ${noCls && !D.classes.length ? '' : noCls ? `<p class="small muted" style="margin-bottom:12px">${noCls} élève(s) sans classe seront rangés dans « ${esc((D.classes[0] || {}).name || 'Non classé')} ».</p>` : ''}
-      ${res.bad.length ? `<details style="margin-bottom:12px"><summary class="small" style="cursor:pointer">Voir les lignes ignorées (${res.bad.length})</summary><div class="small muted" style="max-height:140px;overflow:auto;margin-top:6px">${res.bad.slice(0, 80).map(esc).join('<br>')}</div></details>` : ''}
-      <div class="tw" style="max-height:240px;overflow:auto"><table class="tbl"><thead><tr><th>Nom</th><th>Prénoms</th><th>Classe</th><th>Parent</th><th>Téléphone</th></tr></thead><tbody>${res.list.slice(0, 30).map(s => `<tr><td>${esc(s.last)}</td><td>${esc(s.first)}</td><td>${esc(s.clsName || '—')}</td><td>${esc(s.parent)}</td><td>${esc(s.parentPhone)}</td></tr>`).join('')}</tbody></table></div>${res.list.length > 30 ? `<p class="small muted" style="margin-top:6px">Et ${res.list.length - 30} autre(s)…</p>` : ''}`,
-      actions: [{ label: 'Annuler' }, {
-        label: 'Importer ' + res.list.length + ' élève(s)', cls: 'btn-primary', onClick: ov => {
-          const mk = ov.querySelector('#xl-mk'), create = mk && mk.checked; let made = 0, skipped = 0, n = 0;
-          if (create) missing.forEach(nm => { const c = { id: uid(), name: nm, cycle: 'Primaire', tuition: 0, inscription: 0, capacity: 40, teacherId: '' }; D.classes.push(c); known[norm(nm)] = c; made++; });
-          res.list.forEach(s => {
-            let c = s.clsName ? known[norm(s.clsName)] : D.classes[0];
-            if (!c) { skipped++; return; }
-            const ns = { id: uid(), matricule: 'ELV-' + String(++D.counters.student).padStart(4, '0'), pin: '', status: 'inscrit', createdAt: today(), discount: 0, cantine: false, photo: '', last: s.last, first: s.first, sex: s.sex, birth: s.birth, birthplace: s.birthplace, classId: c.id, parent: s.parent, parentPhone: s.parentPhone, parentEmail: s.parentEmail, address: s.address }; ns.pin = A.parentPin(ns, D.students); D.students.push(ns); n++;
-          });
-          A.save(); A.rerender(); UI.toast(n + ' élève(s) importé(s)' + (made ? ', ' + made + ' classe(s) créée(s)' : '') + (skipped ? ', ' + skipped + ' ignoré(s) (classe inconnue)' : '') + '.', 'ok');
-        }
-      }]
-    });
-  }
-  async function importFile(file) {
-    try {
-      const name = file.name.toLowerCase(); let rows;
-      if (/\.xlsx$/.test(name)) rows = await readXlsx(await file.arrayBuffer());
-      else if (/\.(csv|txt)$/.test(name)) rows = readCsv(await file.text());
-      else throw new Error('Format non pris en charge. Utilisez un fichier .xlsx ou .csv.');
-      importModal(parse(rows));
-    } catch (e) { UI.toast(e.message || 'Fichier illisible.', 'err'); }
-  }
-  ACT['xl-imp'] = () => { let i = document.getElementById('xl-file'); if (!i) { i = document.createElement('input'); i.type = 'file'; i.id = 'xl-file'; i.accept = '.xlsx,.csv,.txt'; i.hidden = true; i.onchange = () => { const f = i.files[0]; i.value = ''; if (f) importFile(f); }; document.body.appendChild(i); } i.click(); };
-  A._xl = { buildXlsx, readXlsx, readCsv, parse, download, norm, toIso, phone, fname };
+  ACT['xl-imp'] = () => { let i = document.getElementById('xl-file'); if (!i) { i = document.createElement('input'); i.type = 'file'; i.id = 'xl-file'; i.accept = '.xlsx,.xls,.ods,.csv,.txt'; i.hidden = true; i.onchange = () => { const f = i.files[0]; i.value = ''; if (f) A._xl.importFile(f); }; document.body.appendChild(i); } i.click(); };
+  A._xl = { buildXlsx, readXlsx, readXlsxAll, readCsv, download, norm, toIso, phone, fname };
 
   /* ================= liste de classe et fiche d'appel ================= */
   const CSS = `body{font-family:'Public Sans',Arial,sans-serif;color:#1b2236;padding:6mm}h1{font-size:20px;margin-bottom:2px}h2{font-size:14px;font-weight:600;margin:0 0 10px}.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1f2a44;padding-bottom:8px;margin-bottom:12px}.hd small{color:#5a6378}
