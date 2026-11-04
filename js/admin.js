@@ -102,7 +102,17 @@
   A.block = id => { const s = byId(id); UI.confirm(`Bloquer l'accès de <b>${esc(s.name)}</b> ? Vous pourrez le débloquer à tout moment.`, () => run(async () => { await SG.updateSchool(id, { blocked: true }); SG.log('Blocage : ' + s.name); }, 'École bloquée.'), { danger: true, yes: 'Bloquer' }); };
   A.unblock = id => run(async () => { await SG.updateSchool(id, { blocked: false }); SG.log('Déblocage : ' + byId(id).name); }, 'École débloquée.');
   A.cancelTrial = id => { const s = byId(id); UI.confirm(`Annuler l'essai gratuit de <b>${esc(s.name)}</b> ? L'accès sera bloqué jusqu'au paiement.`, () => run(async () => { await SG.updateSchool(id, { trialCancelled: true }); SG.log('Essai annulé : ' + s.name); }, 'Essai annulé.'), { danger: true, yes: 'Annuler l\'essai' }); };
-  A.extend = id => UI.formModal({ title: 'Prolonger l\'essai', size: 'sm', fields: [{ name: 'days', label: 'Jours à ajouter', type: 'number', min: 1, def: 7 }], onSubmit: v => { const s = byId(id); const base = s.trialEnd && new Date(s.trialEnd) > Date.now() ? new Date(s.trialEnd) : new Date(); run(async () => { await SG.updateSchool(id, { trialEnd: new Date(base.getTime() + (+v.days) * 864e5).toISOString(), trialCancelled: false }); SG.log('Essai prolongé : ' + s.name); }, 'Essai prolongé.'); } });
+  A.extend = id => UI.formModal({ title: 'Prolonger l\'essai', size: 'sm', fields: [{ name: 'days', label: 'Jours à ajouter', type: 'number', min: 1, def: 7 }], onSubmit: v => { const s = byId(id); const base = s.trialEnd && new Date(s.trialEnd) > Date.now() ? new Date(s.trialEnd) : new Date(); run(async () => { await SG.updateSchool(id, { trialEnd: new Date(base.getTime() + (+v.days) * 864e5).toISOString(), trialCancelled: false }); SG.log('Essai prolongé : ' + s.name); }, 'Essai prolongé.'); }, after: el => { const f = el.querySelector('.mdl-f'); const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'btn btn-navy'; bt.textContent = 'Paiement à vie'; bt.style.marginRight = 'auto'; bt.onclick = () => { const close = el.querySelector('[data-close]'); close && close.click(); A.lifetime(id); }; f.insertBefore(bt, f.firstChild); } });
+  /* Paiement unique (à vie) : active l'accès pour 100 ans, pour les écoles qui ont payé la formule « Paiement unique » */
+  A.lifetime = id => {
+    const s = byId(id);
+    UI.formModal({
+      title: 'Paiement à vie : ' + esc(s.name), size: 'sm',
+      fields: [{ name: 'amount', label: 'Montant reçu (FCFA)', type: 'number', min: 0, def: '' }, { name: 'method', label: 'Mode de paiement', type: 'select', options: ['Orange Money', 'Moov Money', 'Espèces', 'Virement', 'Autre'], cls: 'half' }, { name: 'ref', label: 'Référence', cls: 'half' }, { name: 'note', label: 'Note' }],
+      extra: '<p class="small muted" style="margin-top:10px">L\'école garde l\'accès sans renouvellement (formule « Paiement unique »).</p>',
+      submit: 'Activer à vie', onSubmit: v => { run(async () => { await SG.recordSub(id, { plan: 'Paiement unique', amount: v.amount, months: 1200, method: v.method, ref: v.ref, note: v.note }); await load('subs'); }, 'Paiement à vie activé.'); }
+    });
+  };
   A.pay = id => {
     const g = SG.global(); const s = byId(id);
     UI.formModal({
