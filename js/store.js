@@ -420,7 +420,7 @@
   SG.recordSub = async (schoolId, o) => {
     const s = SG._byId[schoolId] || await SG.school(schoolId);
     const base = s.paidUntil && new Date(s.paidUntil) > Date.now() ? new Date(s.paidUntil) : new Date();
-    const until = new Date(base.getTime() + Math.round(30.4 * o.months) * 864e5);
+    const until = o.months >= 1200 ? new Date('2999-12-31T23:59:00Z') : new Date(base.getTime() + Math.round(30.4 * o.months) * 864e5);
     const ref = db.collection('subs').doc();
     await ref.set({ schoolId, schoolName: s.name, amount: +o.amount || 0, months: o.months, plan: o.plan || '', method: o.method || '', ref: o.ref || '', date: UI.today(), dateMs: Date.now(), status: 'validé', note: o.note || '', prevPaidUntil: s.paidUntil || null });
     await SG.updateSchool(schoolId, { paidUntil: until.toISOString(), plan: o.plan || 'Abonnement', blocked: false, trialCancelled: false });

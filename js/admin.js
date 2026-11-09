@@ -133,7 +133,7 @@
     const s = byId(id), st = SG.status(s), subs = DATA.subs.filter(x => x.schoolId === id), k = s.stats || {};
     UI.modal({
       title: nameOf(s), size: 'lg', body: `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">${badge(SG.STATUS[st][0], SG.STATUS[st][1])}<span class="code">Code ${esc(s.code)}</span>${badge(esc(s.plan), 'info')}</div>
-      <div class="g2"><dl class="kv"><dt>Directeur</dt><dd>${dirOf(s)}</dd><dt>Email</dt><dd>${cEmail(s)}</dd><dt>Téléphone</dt><dd>${cPhone(s)}</dd><dt>Ville</dt><dd>${esc(s.city || '—')}</dd><dt>Inscrit le</dt><dd>${fdate(s.createdAt)}</dd><dt>Fin d'essai</dt><dd>${fdate(s.trialEnd)}</dd><dt>Abonné jusqu'au</dt><dd>${fdate(s.paidUntil) || '—'}</dd></dl>
+      <div class="g2"><dl class="kv"><dt>Directeur</dt><dd>${dirOf(s)}</dd><dt>Email</dt><dd>${cEmail(s)}</dd><dt>Téléphone</dt><dd>${cPhone(s)}</dd><dt>Ville</dt><dd>${esc(s.city || '—')}</dd><dt>Inscrit le</dt><dd>${fdate(s.createdAt)}</dd><dt>Fin d'essai</dt><dd>${fdate(s.trialEnd)}</dd><dt>Abonné jusqu'au</dt><dd>${SG.isLifetime(s) ? 'À vie' : (fdate(s.paidUntil) || '—')}</dd></dl>
       <dl class="kv"><dt>Élèves</dt><dd>${k.students || 0}</dd><dt>Classes</dt><dd>${k.classes || 0}</dd><dt>Professeurs</dt><dd>${k.teachers || 0}</dd><dt>Encaissé par l'école</dt><dd>${money(k.revenue || 0)}</dd><dt>Notes internes</dt><dd>${esc(s.notes || '—')}</dd></dl></div>
       <h4 style="margin:18px 0 8px;font-size:16px">Abonnements payés</h4>${subs.length ? `<div class="tw"><table class="tbl"><tbody>${subs.map(x => `<tr><td>${fdate(x.date)}</td><td>${esc(x.plan)} · ${x.months} mois</td><td>${esc(x.method)}</td><td class="r"><b>${money(x.amount)}</b></td></tr>`).join('')}</tbody></table></div>` : '<p class="muted small">Aucun paiement.</p>'}`
     });
@@ -298,7 +298,7 @@
     });
   }
   function announceModal() { const g = SG.global(); UI.formModal({ title: 'Annonce affichée à toutes les écoles', fields: [{ name: 'a', label: 'Message (vide pour retirer)', type: 'textarea', rows: 3, def: g.announcement }], onSubmit: v => SG.setGlobal({ announcement: v.a.trim() }).then(() => { UI.toast('Annonce mise à jour.', 'ok'); render(); }).catch(x => UI.toast(SG.errMsg(x), 'err')) }); }
-  function exportCsv() { UI.csv('ecoles-school-g.csv', [['École', 'Directeur', 'Email', 'Téléphone', 'Ville', 'Statut', 'Formule', 'Inscrit le', 'Fin essai', 'Abonné jusqu\'au', 'Élèves'], ...DATA.schools.map(s => [plainName(s), SG.isAdmin() || !isProspect(s) ? s.director : maskName(s.director), SG.isAdmin() ? s.email : maskEmail(s.email), SG.isAdmin() ? s.phone : maskPhone(s.phone), s.city, SG.STATUS[SG.status(s)][0], s.plan, fdate(s.createdAt), fdate(s.trialEnd), fdate(s.paidUntil), (s.stats && s.stats.students) || 0])]); }
+  function exportCsv() { UI.csv('ecoles-school-g.csv', [['École', 'Directeur', 'Email', 'Téléphone', 'Ville', 'Statut', 'Formule', 'Inscrit le', 'Fin essai', 'Abonné jusqu\'au', 'Élèves'], ...DATA.schools.map(s => [plainName(s), SG.isAdmin() || !isProspect(s) ? s.director : maskName(s.director), SG.isAdmin() ? s.email : maskEmail(s.email), SG.isAdmin() ? s.phone : maskPhone(s.phone), s.city, SG.STATUS[SG.status(s)][0], s.plan, fdate(s.createdAt), fdate(s.trialEnd), SG.isLifetime(s) ? 'À vie' : fdate(s.paidUntil), (s.stats && s.stats.students) || 0])]); }
 
   /* ---------- rendu ---------- */
   function rows() {
@@ -316,7 +316,7 @@
   }
   function drawList() {
     const box = $('list'); if (!box) return; const l = rows();
-    box.innerHTML = l.length ? `<table class="tbl"><thead><tr><th>École</th><th>Contact</th><th>Statut</th><th>Reste</th><th class="c">Élèves</th><th>Inscrite</th><th></th></tr></thead><tbody>${l.map(s => { const st = SG.status(s); return `<tr><td><b>${nameOf(s)}</b><br><small class="muted">${dirOf(s)} · code ${isProspect(s) && !SG.isAdmin() ? '******' : esc(s.code)}</small></td><td>${cEmail(s)}<br><small class="muted">${cPhone(s)}</small></td><td>${badge(SG.STATUS[st][0], SG.STATUS[st][1])}<br><small class="muted">${esc(s.plan)}</small></td><td>${st === 'trial' || st === 'active' ? SG.daysLeft(s) + ' j' : '—'}</td><td class="c">${(s.stats && s.stats.students) || 0}</td><td>${fdate(s.createdAt)}</td><td>${schoolActions(s)}</td></tr>`; }).join('')}</tbody></table>` : `<div class="empty"><h4>Aucune école</h4><p>${DATA.schools.length ? 'Aucun résultat pour ce filtre.' : 'Les écoles inscrites apparaîtront ici.'}</p></div>`;
+    box.innerHTML = l.length ? `<table class="tbl"><thead><tr><th>École</th><th>Contact</th><th>Statut</th><th>Reste</th><th class="c">Élèves</th><th>Inscrite</th><th></th></tr></thead><tbody>${l.map(s => { const st = SG.status(s); return `<tr><td><b>${nameOf(s)}</b><br><small class="muted">${dirOf(s)} · code ${isProspect(s) && !SG.isAdmin() ? '******' : esc(s.code)}</small></td><td>${cEmail(s)}<br><small class="muted">${cPhone(s)}</small></td><td>${badge(SG.STATUS[st][0], SG.STATUS[st][1])}<br><small class="muted">${esc(s.plan)}</small></td><td>${st === 'trial' || st === 'active' ? SG.leftTxt(s) : '—'}</td><td class="c">${(s.stats && s.stats.students) || 0}</td><td>${fdate(s.createdAt)}</td><td>${schoolActions(s)}</td></tr>`; }).join('')}</tbody></table>` : `<div class="empty"><h4>Aucune école</h4><p>${DATA.schools.length ? 'Aucun résultat pour ce filtre.' : 'Les écoles inscrites apparaîtront ici.'}</p></div>`;
     stripRO();
   }
 

@@ -243,6 +243,8 @@
     return 'expired';
   };
   SG.STATUS = { banned: ['Banni', 'bad'], blocked: ['Bloqué', 'bad'], active: ['Abonné', 'ok'], trial: ['Essai', 'info'], expired: ['Expiré', 'warn'] };
+  SG.isLifetime = s => !!(s && s.paidUntil && new Date(s.paidUntil).getFullYear() >= 2100);
+  SG.leftTxt = (s, suf, pre) => SG.isLifetime(s) && SG.status(s) === 'active' ? 'À vie' : (pre || '') + SG.daysLeft(s) + (suf || ' j');
   SG.daysLeft = s => { const st = SG.status(s); const end = st === 'active' ? s.paidUntil : s.trialEnd; return end ? Math.ceil((new Date(end) - Date.now()) / 864e5) : 0; };
 
   const schoolYear = () => { const n = new Date(); return n.getMonth() >= 7 ? n.getFullYear() : n.getFullYear() - 1; };
