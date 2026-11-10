@@ -2,11 +2,29 @@
   "name": "School-G",
   "short_name": "School-G",
   "description": "Logiciel de gestion scolaire pour écoles privées : élèves, scolarité, notes, bulletins, parents et enseignants.",
-  "start_url": "index.html",
+  "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#14213D",
   "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
     {
       "src": "icon.svg",
       "sizes": "any",
@@ -19,5 +37,7 @@
     "education",
     "business",
     "productivity"
-  ]
+  ],
+  "id": "/",
+  "scope": "/"
 }
